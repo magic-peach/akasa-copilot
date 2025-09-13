@@ -1,0 +1,969 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from database import db
+from models import Booking
+from rebooking_service import rebooking_service
+from event_service import event_processor
+from event_models import FlightState
+from genai_agent import flight_status_agent
+from disruption_predictor import disruption_predictor
+from nlp_agent import nlp_agent
+from voice_chatbot import voice_chatbot
+from notification_service import notification_service
+import logging
+from datetime import datetime
+import atexit
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = Flask(__name__)
+CORS(app)
+
+# Start the event processing background worker
+event_processor.start_background_worker()
+
+# Ensure background worker stops when app shuts down
+atexit.register(event_processor.stop_background_worker)
+
+# Health check endpoint
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.utcnow().isoformat(),
+        'service': 'Akasa Booking API'
+    }), 200
+
+@app.route('/bookings', methods=['POST'])
+def create_booking():
+    """Create a new booking"""
+    try:
+        # Get JSON data from request
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'error': 'No JSON data provided',
+                'message': 'Request body must contain valid JSON'
+            }), 400
+        
+        # Create booking object
+        booking = Booking.from_dict(data)
+        
+        # Validate booking data
+        validation_errors = booking.validate()
+        if validation_errors:
+            return jsonify({
+                'error': 'Validation failed',
+                'details': validation_errors
+            }), 400
+        
+        # Insert booking into database
+        supabase = db.get_client()
+        result = supabase.table('bookings').insert(booking.to_dict()).execute()
+        
+        if result.data:
+            created_booking = result.data[0]
+            logger.info(f"Created booking with ID: {created_booking['id']}")
+            
+            return jsonify({
+                'message': 'Booking created successfully',
+                'booking': created_booking
+            }), 201
+        else:
+            logger.error("Failed to create booking - no data returned")
+            return jsonify({
+                'error': 'Failed to create booking',
+                'message': 'Database operation failed'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error creating booking: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while creating the booking'
+        }), 500
+
+@app.route('/bookings/<booking_id>', methods=['GET'])
+def get_booking(booking_id):
+    """Fetch a booking by ID"""
+    try:
+        # Validate booking_id format (basic UUID validation)
+        if not booking_id or len(booking_id.strip()) == 0:
+            return jsonify({
+                'error': 'Invalid booking ID',
+                'message': 'Booking ID cannot be empty'
+            }), 400
+        
+        # Query database for booking
+        supabase = db.get_client()
+        result = supabase.table('bookings').select('*').eq('id', booking_id).execute()
+        
+        if result.data and len(result.data) > 0:
+            booking = result.data[0]
+            logger.info(f"Retrieved booking with ID: {booking_id}")
+            
+            return jsonify({
+                'booking': booking
+            }), 200
+        else:
+            logger.info(f"Booking not found with ID: {booking_id}")
+            return jsonify({
+                'error': 'Booking not found',
+                'message': f'No booking found with ID: {booking_id}'
+            }), 404
+            
+    except Exception as e:
+        logger.error(f"Error fetching booking {booking_id}: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while fetching the booking'
+        }), 500
+
+@app.route('/bookings', methods=['GET'])
+def list_bookings():
+    """List all bookings with optional filtering"""
+    try:
+        # Get query parameters for filtering
+        customer_id = request.args.get('customer_id')
+        flight_number = request.args.get('flight_number')
+        status = request.args.get('status')
+        limit = request.args.get('limit', 100, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Build query
+        supabase = db.get_client()
+        query = supabase.table('bookings').select('*')
+        
+        # Apply filters
+        if customer_id:
+            query = query.eq('customer_id', customer_id)
+        if flight_number:
+            query = query.eq('flight_number', flight_number)
+        if status:
+            query = query.eq('status', status)
+        
+        # Apply pagination
+        query = query.range(offset, offset + limit - 1)
+        
+        # Order by created_at descending
+        query = query.order('created_at', desc=True)
+        
+        result = query.execute()
+        
+        bookings = result.data or []
+        
+        return jsonify({
+            'bookings': bookings,
+            'count': len(bookings),
+            'offset': offset,
+            'limit': limit
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error listing bookings: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while fetching bookings'
+        }), 500
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        'error': 'Not found',
+        'message': 'The requested resource was not found'
+    }), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({
+        'error': 'Internal server error',
+        'message': 'An unexpected error occurred'
+    }), 500
+
+@app.route('/bookings/<booking_id>/request-change', methods=['POST'])
+def request_booking_change(booking_id):
+    """Request a booking change with new date and get available options"""
+    try:
+        # Get JSON data from request
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'error': 'No JSON data provided',
+                'message': 'Request body must contain valid JSON with new_date'
+            }), 400
+        
+        new_date = data.get('new_date')
+        if not new_date:
+            return jsonify({
+                'error': 'Missing required field',
+                'message': 'new_date is required in YYYY-MM-DD format'
+            }), 400
+        
+        # Validate date format
+        try:
+            datetime.strptime(new_date, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({
+                'error': 'Invalid date format',
+                'message': 'new_date must be in YYYY-MM-DD format'
+            }), 400
+        
+        # Get the original booking
+        supabase = db.get_client()
+        result = supabase.table('bookings').select('*').eq('id', booking_id).execute()
+        
+        if not result.data or len(result.data) == 0:
+            return jsonify({
+                'error': 'Booking not found',
+                'message': f'No booking found with ID: {booking_id}'
+            }), 404
+        
+        original_booking = result.data[0]
+        
+        # Check if booking can be changed
+        if original_booking['status'] not in ['confirmed', 'pending']:
+            return jsonify({
+                'error': 'Booking cannot be changed',
+                'message': f'Bookings with status "{original_booking["status"]}" cannot be modified'
+            }), 400
+        
+        # Check availability for the new date
+        available_options = rebooking_service.check_availability(
+            original_booking['origin'],
+            original_booking['destination'],
+            new_date
+        )
+        
+        if not available_options:
+            return jsonify({
+                'error': 'No flights available',
+                'message': f'No flights available from {original_booking["origin"]} to {original_booking["destination"]} on {new_date}'
+            }), 404
+        
+        # Calculate cost differences for each option
+        options_with_costs = []
+        for option in available_options:
+            option['depart_date'] = new_date  # Add the requested date to the option
+            cost_info = rebooking_service.calculate_cost_difference(original_booking, option)
+            
+            options_with_costs.append({
+                **option,
+                'cost_breakdown': cost_info
+            })
+        
+        logger.info(f"Found {len(options_with_costs)} rebooking options for booking {booking_id}")
+        
+        return jsonify({
+            'original_booking': {
+                'id': original_booking['id'],
+                'flight_number': original_booking['flight_number'],
+                'depart_date': original_booking['depart_date'],
+                'origin': original_booking['origin'],
+                'destination': original_booking['destination']
+            },
+            'requested_date': new_date,
+            'available_options': options_with_costs,
+            'message': f'Found {len(options_with_costs)} available flights for your requested change'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error processing change request for booking {booking_id}: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while processing the change request'
+        }), 500
+
+@app.route('/bookings/<booking_id>/auto-rebook', methods=['POST'])
+def auto_rebook_booking(booking_id):
+    """Automatically rebook a flight with the selected option"""
+    try:
+        # Get JSON data from request
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'error': 'No JSON data provided',
+                'message': 'Request body must contain rebooking option details'
+            }), 400
+        
+        # Validate required fields
+        required_fields = ['flight_number', 'depart_date', 'departure_time', 'price']
+        missing_fields = [field for field in required_fields if field not in data]
+        
+        if missing_fields:
+            return jsonify({
+                'error': 'Missing required fields',
+                'message': f'The following fields are required: {", ".join(missing_fields)}'
+            }), 400
+        
+        # Get the original booking
+        supabase = db.get_client()
+        result = supabase.table('bookings').select('*').eq('id', booking_id).execute()
+        
+        if not result.data or len(result.data) == 0:
+            return jsonify({
+                'error': 'Booking not found',
+                'message': f'No booking found with ID: {booking_id}'
+            }), 404
+        
+        original_booking = result.data[0]
+        
+        # Check if booking can be changed
+        if original_booking['status'] not in ['confirmed', 'pending']:
+            return jsonify({
+                'error': 'Booking cannot be changed',
+                'message': f'Bookings with status "{original_booking["status"]}" cannot be modified'
+            }), 400
+        
+        # Validate the new date
+        try:
+            datetime.strptime(data['depart_date'], '%Y-%m-%d')
+        except ValueError:
+            return jsonify({
+                'error': 'Invalid date format',
+                'message': 'depart_date must be in YYYY-MM-DD format'
+            }), 400
+        
+        # Perform the auto-rebooking
+        rebooking_result = rebooking_service.auto_rebook(original_booking, data)
+        
+        if not rebooking_result['success']:
+            return jsonify({
+                'error': 'Rebooking failed',
+                'message': 'Failed to process the rebooking request'
+            }), 500
+        
+        # Update the original booking status to 'cancelled'
+        update_result = supabase.table('bookings').update({
+            'status': 'cancelled',
+            'updated_at': datetime.utcnow().isoformat()
+        }).eq('id', booking_id).execute()
+        
+        # Insert the new booking (in a real system, this would be a transaction)
+        new_booking_data = rebooking_result['new_booking']
+        # Remove fields that aren't in our database schema
+        db_booking_data = {
+            'id': new_booking_data['id'],
+            'customer_id': new_booking_data['customer_id'],
+            'flight_number': new_booking_data['flight_number'],
+            'origin': new_booking_data['origin'],
+            'destination': new_booking_data['destination'],
+            'depart_date': new_booking_data['depart_date'],
+            'status': new_booking_data['status']
+        }
+        
+        insert_result = supabase.table('bookings').insert(db_booking_data).execute()
+        
+        if not insert_result.data:
+            logger.error("Failed to create new booking record")
+            return jsonify({
+                'error': 'Rebooking failed',
+                'message': 'Failed to create new booking record'
+            }), 500
+        
+        logger.info(f"Successfully rebooked booking {booking_id} to new booking {new_booking_data['id']}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Flight successfully rebooked',
+            'original_booking_id': booking_id,
+            'new_booking': rebooking_result['new_booking'],
+            'confirmation_code': rebooking_result['confirmation_code'],
+            'change_summary': rebooking_result['change_summary']
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error auto-rebooking booking {booking_id}: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while processing the rebooking'
+        }), 500
+
+@app.route('/webhook/flight-event', methods=['POST'])
+def flight_event_webhook():
+    """Webhook endpoint for receiving flight events"""
+    try:
+        # Get JSON data from request
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'error': 'No JSON data provided',
+                'message': 'Request body must contain valid JSON with flight event data'
+            }), 400
+        
+        # Validate required fields
+        required_fields = ['flight_number', 'status', 'estimated_arrival']
+        missing_fields = [field for field in required_fields if field not in data]
+        
+        if missing_fields:
+            return jsonify({
+                'error': 'Missing required fields',
+                'message': f'The following fields are required: {", ".join(missing_fields)}'
+            }), 400
+        
+        # Create flight state object for validation
+        flight_state = FlightState.from_dict(data)
+        validation_errors = flight_state.validate()
+        
+        if validation_errors:
+            return jsonify({
+                'error': 'Validation failed',
+                'details': validation_errors
+            }), 400
+        
+        # Add event to processing queue
+        success = event_processor.add_flight_event(data)
+        
+        if not success:
+            return jsonify({
+                'error': 'Failed to process event',
+                'message': 'The flight event could not be added to the processing queue'
+            }), 500
+        
+        logger.info(f"Received flight event: {flight_state.flight_number} - {flight_state.status}")
+        
+        return jsonify({
+            'message': 'Flight event received and queued for processing',
+            'flight_number': flight_state.flight_number,
+            'status': flight_state.status,
+            'timestamp': datetime.utcnow().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error processing flight event webhook: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while processing the flight event'
+        }), 500
+
+@app.route('/flight-state/<flight_number>', methods=['GET'])
+def get_flight_state(flight_number):
+    """Get current flight state"""
+    try:
+        # Get flight state from event processor
+        flight_state = event_processor.get_flight_state(flight_number)
+        
+        if flight_state:
+            return jsonify({
+                'flight_state': flight_state.to_dict()
+            }), 200
+        
+        # If not in memory, try database
+        supabase = db.get_client()
+        result = supabase.table('flight_state').select('*').eq('flight_number', flight_number).execute()
+        
+        if result.data and len(result.data) > 0:
+            return jsonify({
+                'flight_state': result.data[0]
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Flight state not found',
+                'message': f'No flight state found for flight {flight_number}'
+            }), 404
+            
+    except Exception as e:
+        logger.error(f"Error fetching flight state {flight_number}: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while fetching flight state'
+        }), 500
+
+@app.route('/alerts', methods=['GET'])
+def get_alerts():
+    """Get recent alerts"""
+    try:
+        limit = request.args.get('limit', 10, type=int)
+        flight_number = request.args.get('flight_number')
+        severity = request.args.get('severity')
+        resolved = request.args.get('resolved')
+        
+        # Get alerts from database
+        supabase = db.get_client()
+        query = supabase.table('alerts').select('*')
+        
+        # Apply filters
+        if flight_number:
+            query = query.eq('flight_number', flight_number)
+        if severity:
+            query = query.eq('severity', severity)
+        if resolved is not None:
+            query = query.eq('resolved', resolved.lower() == 'true')
+        
+        # Apply limit and ordering
+        query = query.order('created_at', desc=True).limit(limit)
+        
+        result = query.execute()
+        alerts = result.data or []
+        
+        return jsonify({
+            'alerts': alerts,
+            'count': len(alerts),
+            'limit': limit
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching alerts: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while fetching alerts'
+        }), 500
+
+@app.route('/alerts/<alert_id>/resolve', methods=['POST'])
+def resolve_alert(alert_id):
+    """Mark an alert as resolved"""
+    try:
+        supabase = db.get_client()
+        
+        # Update alert status
+        result = supabase.table('alerts').update({
+            'resolved': True,
+            'resolved_at': datetime.utcnow().isoformat()
+        }).eq('id', alert_id).execute()
+        
+        if result.data and len(result.data) > 0:
+            logger.info(f"Resolved alert {alert_id}")
+            return jsonify({
+                'message': 'Alert resolved successfully',
+                'alert_id': alert_id
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Alert not found',
+                'message': f'No alert found with ID: {alert_id}'
+            }), 404
+            
+    except Exception as e:
+        logger.error(f"Error resolving alert {alert_id}: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while resolving the alert'
+        }), 500
+
+@app.route('/flights/<flight_id>/status', methods=['GET'])
+def get_flight_status_genai(flight_id):
+    """
+    GenAI agent endpoint for intelligent flight status retrieval
+    Integrates multiple data sources and provides confidence-scored responses
+    """
+    try:
+        # Validate flight_id
+        if not flight_id or len(flight_id.strip()) == 0:
+            return jsonify({
+                'error': 'Invalid flight ID',
+                'message': 'Flight ID cannot be empty'
+            }), 400
+        
+        logger.info(f"GenAI agent processing flight status request for: {flight_id}")
+        
+        # Use GenAI agent to retrieve comprehensive flight status
+        flight_status = flight_status_agent.get_flight_status(flight_id)
+        
+        # Check if we got an error response
+        if flight_status.get('status') == 'ERROR':
+            return jsonify({
+                'error': 'Flight status retrieval failed',
+                'message': flight_status.get('error', 'Unknown error occurred'),
+                'flight_id': flight_id
+            }), 404
+        
+        # Log successful retrieval
+        confidence = flight_status.get('confidence_score', 0.0)
+        logger.info(f"Retrieved flight status for {flight_id} with confidence {confidence}")
+        
+        # Return successful response
+        return jsonify({
+            'success': True,
+            'flight_status': flight_status,
+            'agent_info': {
+                'processing_time': datetime.utcnow().isoformat(),
+                'data_sources_used': flight_status.get('data_sources', {}),
+                'session_id': flight_status.get('session_id')
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error in GenAI flight status endpoint for {flight_id}: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while retrieving flight status',
+            'flight_id': flight_id
+        }), 500
+
+@app.route('/chatbot-sessions', methods=['GET'])
+def get_chatbot_sessions():
+    """Get recent chatbot sessions for monitoring and analysis"""
+    try:
+        limit = request.args.get('limit', 10, type=int)
+        flight_id = request.args.get('flight_id')
+        min_confidence = request.args.get('min_confidence', type=float)
+        
+        # Build query
+        supabase = db.get_client()
+        query = supabase.table('chatbot_sessions').select('*')
+        
+        # Apply filters
+        if flight_id:
+            query = query.eq('flight_id', flight_id)
+        if min_confidence is not None:
+            query = query.gte('confidence_score', min_confidence)
+        
+        # Apply ordering and limit
+        query = query.order('created_at', desc=True).limit(limit)
+        
+        result = query.execute()
+        sessions = result.data or []
+        
+        return jsonify({
+            'sessions': sessions,
+            'count': len(sessions),
+            'limit': limit
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching chatbot sessions: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while fetching chatbot sessions'
+        }), 500
+
+@app.route('/flights', methods=['GET'])
+def list_flights():
+    """List flights with optional filtering"""
+    try:
+        # Get query parameters
+        origin = request.args.get('origin')
+        destination = request.args.get('destination')
+        status = request.args.get('status')
+        limit = request.args.get('limit', 20, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Build query
+        supabase = db.get_client()
+        query = supabase.table('flights').select('*')
+        
+        # Apply filters
+        if origin:
+            query = query.eq('origin', origin.upper())
+        if destination:
+            query = query.eq('destination', destination.upper())
+        if status:
+            query = query.eq('status', status.upper())
+        
+        # Apply pagination and ordering
+        query = query.range(offset, offset + limit - 1)
+        query = query.order('scheduled_departure', desc=False)
+        
+        result = query.execute()
+        flights = result.data or []
+        
+        return jsonify({
+            'flights': flights,
+            'count': len(flights),
+            'offset': offset,
+            'limit': limit
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error listing flights: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while fetching flights'
+        }), 500
+
+@app.route('/flights/<flight_id>', methods=['GET'])
+def get_flight_metadata(flight_id):
+    """Get flight metadata from the flights table"""
+    try:
+        supabase = db.get_client()
+        
+        # Try to find by ID first, then by flight_number
+        result = supabase.table('flights').select('*').eq('id', flight_id).execute()
+        
+        if not result.data:
+            # Try by flight_number
+            result = supabase.table('flights').select('*').eq('flight_number', flight_id).execute()
+        
+        if result.data and len(result.data) > 0:
+            flight = result.data[0]
+            return jsonify({
+                'flight': flight
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Flight not found',
+                'message': f'No flight found with ID or flight number: {flight_id}'
+            }), 404
+            
+    except Exception as e:
+        logger.error(f"Error fetching flight metadata {flight_id}: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while fetching flight metadata'
+        }), 500
+
+@app.route('/flights/<flight_id>/risk', methods=['GET'])
+def get_flight_disruption_risk(flight_id):
+    """
+    GenAI agent endpoint for predicting flight disruption risk
+    Combines weather data, historical patterns, and real-time delays
+    """
+    try:
+        # Validate flight_id
+        if not flight_id or len(flight_id.strip()) == 0:
+            return jsonify({
+                'error': 'Invalid flight ID',
+                'message': 'Flight ID cannot be empty'
+            }), 400
+        
+        logger.info(f"Disruption prediction request for flight: {flight_id}")
+        
+        # Use disruption predictor to analyze risk
+        prediction_result = disruption_predictor.predict_disruption(flight_id)
+        
+        # Check if we got an error response
+        if prediction_result.get('error'):
+            return jsonify({
+                'error': 'Disruption prediction failed',
+                'message': prediction_result.get('error', 'Unknown error occurred'),
+                'flight_id': flight_id
+            }), 404
+        
+        # Store prediction result in database
+        prediction_id = store_disruption_prediction(prediction_result)
+        
+        # Add prediction ID to response
+        prediction_result['prediction_id'] = prediction_id
+        
+        # Log successful prediction
+        risk_score = prediction_result.get('disruption_risk', 0.0)
+        risk_level = prediction_result.get('risk_level', 'UNKNOWN')
+        logger.info(f"Disruption prediction for {flight_id}: risk={risk_score}, level={risk_level}")
+        
+        # Return successful response
+        return jsonify({
+            'success': True,
+            'disruption_prediction': prediction_result,
+            'prediction_info': {
+                'processing_time': datetime.utcnow().isoformat(),
+                'prediction_id': prediction_id,
+                'model_version': prediction_result.get('model_version', '1.0')
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error in disruption prediction endpoint for {flight_id}: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while predicting disruption risk',
+            'flight_id': flight_id
+        }), 500
+
+def store_disruption_prediction(prediction_result: dict) -> str:
+    """Store disruption prediction in database"""
+    try:
+        import uuid
+        prediction_id = str(uuid.uuid4())
+        
+        supabase = db.get_client()
+        
+        prediction_data = {
+            'id': prediction_id,
+            'flight_id': prediction_result['flight_id'],
+            'flight_number': prediction_result['flight_number'],
+            'origin': prediction_result['origin'],
+            'destination': prediction_result['destination'],
+            'disruption_risk': prediction_result['disruption_risk'],
+            'risk_level': prediction_result['risk_level'],
+            'risk_factors': prediction_result.get('risk_factors', {}),
+            'contributing_factors': prediction_result.get('contributing_factors', []),
+            'recommendations': prediction_result.get('recommendations', []),
+            'confidence': prediction_result.get('confidence', 0.0),
+            'model_version': prediction_result.get('model_version', '1.0')
+        }
+        
+        result = supabase.table('disruption_predictions').insert(prediction_data).execute()
+        
+        if result.data:
+            logger.info(f"Stored disruption prediction {prediction_id}")
+            return prediction_id
+        else:
+            logger.error(f"Failed to store disruption prediction for {prediction_result['flight_id']}")
+            return prediction_id  # Return ID anyway for tracking
+            
+    except Exception as e:
+        logger.error(f"Error storing disruption prediction: {str(e)}")
+        return str(uuid.uuid4())  # Return a UUID anyway
+
+@app.route('/chat/voice', methods=['POST'])
+def voice_chat():
+    """
+    Voice-enabled chatbot endpoint
+    Handles speech-to-text, conversational AI, and text-to-speech
+    """
+    try:
+        # Get request data
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'error': 'No JSON data provided',
+                'message': 'Request body must contain audio_data or text_input'
+            }), 400
+        
+        user_id = data.get('user_id')
+        if not user_id:
+            return jsonify({
+                'error': 'Missing user_id',
+                'message': 'user_id is required for conversation tracking'
+            }), 400
+        
+        audio_data = data.get('audio_data')  # Base64 encoded audio
+        text_input = data.get('text_input')   # Direct text input
+        
+        if not audio_data and not text_input:
+            return jsonify({
+                'error': 'No input provided',
+                'message': 'Either audio_data or text_input must be provided'
+            }), 400
+        
+        logger.info(f"Voice chat request from user {user_id}")
+        
+        # Process through voice chatbot
+        chat_response = voice_chatbot.process_voice_request(user_id, audio_data, text_input)
+        
+        if not chat_response.get('success'):
+            return jsonify(chat_response), 400
+        
+        logger.info(f"Voice chat processed successfully for user {user_id}")
+        
+        return jsonify(chat_response), 200
+        
+    except Exception as e:
+        logger.error(f"Error in voice chat endpoint: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while processing your voice request'
+        }), 500
+
+@app.route('/bookings/<booking_id>/change-date', methods=['POST'])
+def change_booking_date_nlp(booking_id):
+    """
+    Natural language booking date change endpoint
+    Interprets requests like "change my flight to Monday"
+    """
+    try:
+        # Get JSON data from request
+        data = request.get_json()
+        
+        if not data or 'request' not in data:
+            return jsonify({
+                'error': 'No request provided',
+                'message': 'Request body must contain "request" field with natural language text'
+            }), 400
+        
+        request_text = data['request']
+        
+        # Get the original booking
+        supabase = db.get_client()
+        result = supabase.table('bookings').select('*').eq('id', booking_id).execute()
+        
+        if not result.data or len(result.data) == 0:
+            return jsonify({
+                'error': 'Booking not found',
+                'message': f'No booking found with ID: {booking_id}'
+            }), 404
+        
+        booking_data = result.data[0]
+        
+        # Use NLP agent to interpret the request
+        interpretation = nlp_agent.interpret_booking_change(request_text, booking_data)
+        
+        if interpretation['intent'] != 'change_booking':
+            return jsonify({
+                'error': 'Request not understood',
+                'message': 'Could not interpret the booking change request',
+                'interpretation': interpretation
+            }), 400
+        
+        if interpretation['confidence'] < 0.5:
+            return jsonify({
+                'error': 'Low confidence interpretation',
+                'message': 'Please provide a clearer request for booking changes',
+                'interpretation': interpretation,
+                'suggestions': [
+                    'Try: "Change my flight to Monday"',
+                    'Try: "Reschedule to February 20th"',
+                    'Try: "Move to next Tuesday morning"'
+                ]
+            }), 400
+        
+        # Extract new date from interpretation
+        new_date = interpretation['extracted_data'].get('new_date')
+        if not new_date:
+            return jsonify({
+                'error': 'No date found',
+                'message': 'Could not extract a valid date from your request',
+                'interpretation': interpretation
+            }), 400
+        
+        # Find alternative flights
+        alternatives = nlp_agent.find_alternative_flights(booking_data, interpretation['extracted_data'])
+        
+        if not alternatives:
+            return jsonify({
+                'error': 'No alternatives found',
+                'message': f'No flights available for your requested change to {new_date}',
+                'interpretation': interpretation
+            }), 404
+        
+        # Store NLP session
+        session_data = {
+            'booking_id': booking_id,
+            'intent': interpretation['intent'],
+            'confidence': interpretation['confidence'],
+            'original_request': request_text,
+            'response_data': {
+                'alternatives_found': len(alternatives),
+                'new_date': new_date,
+                'interpretation': interpretation
+            }
+        }
+        session_id = nlp_agent.store_nlp_session(session_data)
+        
+        logger.info(f"NLP booking change request processed for {booking_id}: {len(alternatives)} alternatives found")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Booking change request understood',
+            'interpretation': interpretation,
+            'original_booking': {
+                'id': booking_data['id'],
+                'flight_number': booking_data['flight_number'],
+                'depart_date': booking_data['depart_date'],
+                'origin': booking_data['origin'],
+                'destination': booking_data['destination']
+            },
+            'alternatives': alternatives[:3],  # Return top 3 alternatives
+            'session_id': session_id
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error processing NLP booking change for {booking_id}: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while processing your request'
+        }), 500
+
+if __name__ == '__main__':
+    try:
+        app.run(debug=True, host='0.0.0.0', port=5000)
+    finally:
+        # Ensure background worker stops when app shuts down
+        event_processor.stop_background_worker()
