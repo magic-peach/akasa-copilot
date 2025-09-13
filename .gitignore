@@ -59,3 +59,5 @@ htmlcov/
 # Flask
 instance/
 .webassets-cache
+# OAuth credentials (contains secrets)
+credentials.json
