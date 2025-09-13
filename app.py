@@ -10,8 +10,11 @@ from disruption_predictor import disruption_predictor
 from nlp_agent import nlp_agent
 from voice_chatbot import voice_chatbot
 from notification_service import notification_service
+from flight_search_service import flight_search_service
+from advanced_risk_predictor import advanced_risk_predictor
 import logging
-from datetime import datetime
+import random
+from datetime import datetime, timedelta
 import atexit
 
 # Configure logging
@@ -961,9 +964,267 @@ def change_booking_date_nlp(booking_id):
             'message': 'An unexpected error occurred while processing your request'
         }), 500
 
+@app.route('/flights/search', methods=['POST'])
+def search_flights():
+    """
+    Search for flights based on user criteria
+    Returns multiple flight options with risk scores
+    """
+    try:
+        # Get JSON data from request
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'error': 'No JSON data provided',
+                'message': 'Request body must contain search criteria'
+            }), 400
+        
+        # Extract search parameters
+        origin = data.get('origin', '').strip().upper()
+        destination = data.get('destination', '').strip().upper()
+        date = data.get('date', '')
+        budget = data.get('budget', 0)
+        passenger_count = data.get('passenger_count', 1)
+        
+        # Validate required fields
+        if not origin or not destination or not date:
+            return jsonify({
+                'error': 'Missing required fields',
+                'message': 'origin, destination, and date are required'
+            }), 400
+        
+        if budget <= 0:
+            return jsonify({
+                'error': 'Invalid budget',
+                'message': 'Budget must be greater than 0'
+            }), 400
+        
+        logger.info(f"Flight search request: {origin} to {destination} on {date}, budget: {budget}")
+        
+        # Search for flights
+        flights = flight_search_service.search_flights(origin, destination, date, budget, passenger_count)
+        
+        if not flights:
+            return jsonify({
+                'error': 'No flights found',
+                'message': f'No flights available for {origin} to {destination} on {date} within budget ₹{budget}',
+                'search_criteria': {
+                    'origin': origin,
+                    'destination': destination,
+                    'date': date,
+                    'budget': budget,
+                    'passenger_count': passenger_count
+                }
+            }), 404
+        
+        logger.info(f"Found {len(flights)} flights for {origin} to {destination}")
+        
+        return jsonify({
+            'success': True,
+            'flights': flights,
+            'count': len(flights),
+            'search_criteria': {
+                'origin': origin,
+                'destination': destination,
+                'date': date,
+                'budget': budget,
+                'passenger_count': passenger_count
+            },
+            'timestamp': datetime.utcnow().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error searching flights: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while searching for flights'
+        }), 500
+
+@app.route('/flights/<flight_id>/risk-analysis', methods=['GET'])
+def get_flight_risk_analysis(flight_id):
+    """
+    Get detailed risk analysis for a specific flight
+    Returns comprehensive risk breakdown with charts data
+    """
+    try:
+        # For demo purposes, generate risk analysis data
+        # In production, this would fetch from database or calculate based on flight_id
+        
+        risk_analysis = {
+            'flight_id': flight_id,
+            'overall_risk_score': random.uniform(65, 95),
+            'risk_level': random.choice(['Low Risk', 'Medium Risk', 'High Risk']),
+            'risk_factors': {
+                'weather_risk': random.uniform(10, 40),
+                'operational_risk': random.uniform(15, 35),
+                'airport_risk': random.uniform(10, 30),
+                'seasonal_risk': random.uniform(5, 25),
+                'regulatory_risk': random.uniform(5, 15),
+                'passenger_risk': random.uniform(10, 30),
+                'technology_risk': random.uniform(5, 20),
+                'pricing_risk': random.uniform(10, 25)
+            },
+            'recommendations': [
+                "Check weather forecast before travel",
+                "Arrive at airport 2 hours early",
+                "Consider travel insurance"
+            ],
+            'historical_performance': {
+                'on_time_percentage': random.uniform(75, 95),
+                'average_delay_minutes': random.randint(5, 30),
+                'cancellation_rate': random.uniform(1, 5)
+            }
+        }
+        
+        # Adjust risk level based on score
+        score = risk_analysis['overall_risk_score']
+        if score >= 80:
+            risk_analysis['risk_level'] = 'Low Risk'
+            risk_analysis['risk_color'] = 'green'
+        elif score >= 60:
+            risk_analysis['risk_level'] = 'Medium Risk'
+            risk_analysis['risk_color'] = 'yellow'
+        else:
+            risk_analysis['risk_level'] = 'High Risk'
+            risk_analysis['risk_color'] = 'red'
+        
+        return jsonify({
+            'success': True,
+            'risk_analysis': risk_analysis,
+            'timestamp': datetime.utcnow().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting risk analysis for flight {flight_id}: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while analyzing flight risk'
+        }), 500
+
+@app.route('/pnr/<pnr_number>', methods=['GET'])
+def get_pnr_details(pnr_number):
+    """
+    Get flight details and status by PNR number
+    Returns mock flight data for demo purposes
+    """
+    try:
+        if not pnr_number or len(pnr_number) < 6:
+            return jsonify({
+                'error': 'Invalid PNR',
+                'message': 'PNR number must be at least 6 characters'
+            }), 400
+        
+        # Generate mock PNR data
+        mock_pnr_data = {
+            'pnr': pnr_number.upper(),
+            'status': random.choice(['Confirmed', 'Waitlisted', 'Cancelled']),
+            'booking_date': (datetime.now() - timedelta(days=random.randint(1, 30))).strftime('%Y-%m-%d'),
+            'passenger_name': 'John Doe',
+            'contact_email': 'john.doe@example.com',
+            'contact_phone': '+91-9876543210',
+            'flight_details': {
+                'flight_number': f"QP{random.randint(1000, 9999)}",
+                'airline': 'Akasa Air',
+                'origin': {
+                    'code': 'DEL',
+                    'name': 'Indira Gandhi International Airport',
+                    'city': 'Delhi',
+                    'terminal': 'T3'
+                },
+                'destination': {
+                    'code': 'BOM',
+                    'name': 'Chhatrapati Shivaji Maharaj International Airport',
+                    'city': 'Mumbai',
+                    'terminal': 'T2'
+                },
+                'departure_date': (datetime.now() + timedelta(days=random.randint(1, 30))).strftime('%Y-%m-%d'),
+                'departure_time': f"{random.randint(6, 22):02d}:{random.choice(['00', '15', '30', '45'])}",
+                'arrival_time': f"{random.randint(8, 23):02d}:{random.choice(['00', '15', '30', '45'])}",
+                'duration': '2h 15m',
+                'aircraft_type': 'A320',
+                'seat_number': f"{random.randint(1, 30)}{random.choice(['A', 'B', 'C', 'D', 'E', 'F'])}",
+                'class': 'Economy',
+                'meal_preference': random.choice(['Vegetarian', 'Non-Vegetarian', 'Vegan']),
+                'baggage_allowance': '15kg'
+            },
+            'current_status': {
+                'status': random.choice(['On Time', 'Delayed', 'Boarding', 'Departed', 'Arrived']),
+                'gate': f"G{random.randint(1, 25)}",
+                'terminal': 'T3',
+                'delay_minutes': random.randint(0, 60) if random.choice([True, False]) else 0,
+                'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+        }
+        
+        logger.info(f"Retrieved PNR details for {pnr_number}")
+        
+        return jsonify({
+            'success': True,
+            'pnr_details': mock_pnr_data,
+            'timestamp': datetime.utcnow().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error retrieving PNR details for {pnr_number}: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred while retrieving PNR details'
+        }), 500
+
+@app.route('/flights/comprehensive-analysis', methods=['POST'])
+def get_comprehensive_flight_analysis():
+    """
+    Get comprehensive analysis of all flights for a route
+    Returns detailed comparison, statistics, and final verdict
+    """
+    try:
+        # Get JSON data from request
+        data = request.get_json()
+        
+        if not data or 'flights' not in data:
+            return jsonify({
+                'error': 'No flight data provided',
+                'message': 'Request body must contain flights array'
+            }), 400
+        
+        flights = data['flights']
+        
+        if not flights or len(flights) == 0:
+            return jsonify({
+                'error': 'No flights to analyze',
+                'message': 'At least one flight is required for analysis'
+            }), 400
+        
+        logger.info(f"Comprehensive analysis request for {len(flights)} flights")
+        
+        # Use advanced risk predictor for comprehensive analysis
+        analysis_result = advanced_risk_predictor.predict_comprehensive_risk(flights)
+        
+        if analysis_result.get('error'):
+            return jsonify({
+                'error': 'Analysis failed',
+                'message': analysis_result['error']
+            }), 500
+        
+        logger.info(f"Comprehensive analysis completed for route {analysis_result['route']}")
+        
+        return jsonify({
+            'success': True,
+            'comprehensive_analysis': analysis_result,
+            'timestamp': datetime.utcnow().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error in comprehensive flight analysis: {str(e)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred during comprehensive analysis'
+        }), 500
+
 if __name__ == '__main__':
     try:
-        app.run(debug=True, host='0.0.0.0', port=5000)
+        app.run(debug=True, host='0.0.0.0', port=8080)
     finally:
         # Ensure background worker stops when app shuts down
         event_processor.stop_background_worker()

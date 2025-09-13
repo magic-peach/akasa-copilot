@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { Plane, Mic, Calendar, MapPin, DollarSign, Clock, AlertTriangle } from 'lucide-react'
+import React from 'react'
 
 export default function AkasaCopilot() {
   const [isLoading, setIsLoading] = useState(false)
-  const [flightData, setFlightData] = useState<any>(null)
+  const [flightData, setFlightData] = useState<unknown>(null)
   const [voiceActive, setVoiceActive] = useState(false)
   const [chatMessages, setChatMessages] = useState<any[]>([])
 

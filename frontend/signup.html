@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - Akasa Copilot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            500: '#6C63FF',
+                            600: '#5a52e6',
+                        },
+                        dark: {
+                            700: '#333333',
+                            800: '#1a1a1a',
+                            900: '#121212',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { 
+            background: linear-gradient(135deg, #121212 0%, #1a1a1a 100%);
+            min-height: 100vh;
+        }
+        .hero-glow {
+            background: radial-gradient(circle at center, rgba(108, 99, 255, 0.1) 0%, transparent 70%);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #6C63FF 0%, #5a52e6 100%);
+            color: white;
+            padding: 16px 32px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 18px;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(108, 99, 255, 0.4);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: 2px solid #6C63FF;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .btn-secondary:hover {
+            background: rgba(108, 99, 255, 0.1);
+            box-shadow: 0 0 20px rgba(108, 99, 255, 0.3);
+        }
+        .feature-card {
+            background: rgba(26, 26, 26, 0.8);
+            border: 1px solid #333333;
+            border-radius: 16px;
+            padding: 32px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        .feature-card:hover {
+            border-color: #6C63FF;
+            box-shadow: 0 0 30px rgba(108, 99, 255, 0.2);
+        }
+        .logo-glow {
+            filter: drop-shadow(0 0 20px rgba(108, 99, 255, 0.6));
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .floating {
+            animation: float 3s ease-in-out infinite;
+        }
+        .form-input {
+            background: rgba(26, 26, 26, 0.8);
+            border: 2px solid #333333;
+            border-radius: 12px;
+            padding: 16px;
+            color: white;
+            width: 100%;
+            transition: all 0.3s ease;
+            font-size: 16px;
+        }
+        .form-input:focus {
+            border-color: #6C63FF;
+            outline: none;
+            box-shadow: 0 0 20px rgba(108, 99, 255, 0.3);
+        }
+        .form-input.error {
+            border-color: #ef4444;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+        }
+        .form-input.success {
+            border-color: #10b981;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+        }
+        .error-message {
+            color: #ef4444;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+        .success-message {
+            color: #10b981;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+        .password-strength {
+            margin-top: 8px;
+        }
+        .strength-bar {
+            height: 4px;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+        .strength-weak { background: #ef4444; width: 25%; }
+        .strength-fair { background: #f59e0b; width: 50%; }
+        .strength-good { background: #3b82f6; width: 75%; }
+        .strength-strong { background: #10b981; width: 100%; }
+    </style>
+</head>
+<body class="text-white">
+    <!-- Sign Up Screen -->
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="relative z-10 p-6">
+            <div class="container mx-auto">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <svg class="h-8 w-8 text-purple-500 logo-glow floating" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                        </svg>
+                        <h1 class="text-2xl font-bold bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
+                            Akasa Copilot
+                        </h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button class="btn-secondary" onclick="goBack()">← Back to Welcome</button>
+                        <button class="text-gray-300 hover:text-white transition-colors" onclick="goToSignIn()">Already have an account?</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex items-center justify-center relative py-12">
+            <div class="hero-glow absolute inset-0"></div>
+            <div class="container mx-auto px-6 relative z-10">
+                <div class="max-w-md mx-auto">
+                    <!-- Sign Up Form -->
+                    <div class="feature-card">
+                        <div class="text-center mb-8">
+                            <h2 class="text-3xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
+                                Join the Future of Aviation
+                            </h2>
+                            <p class="text-gray-400">
+                                Create your account and start your journey with Akasa Copilot
+                            </p>
+                        </div>
+                        
+                        <form id="signupForm" class="space-y-6">
+                            <!-- Email Field -->
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-left">Email Address</label>
+                                <input 
+                                    type="email" 
+                                    id="email" 
+                                    class="form-input" 
+                                    placeholder="your.email@example.com"
+                                    required
+                                >
+                                <div id="emailError" class="error-message hidden"></div>
+                            </div>
+
+                            <!-- Password Field -->
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-left">Password</label>
+                                <input 
+                                    type="password" 
+                                    id="password" 
+                                    class="form-input" 
+                                    placeholder="Create a strong password"
+                                    required
+                                >
+                                <div class="password-strength">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="text-sm text-gray-400">Password Strength:</span>
+                                        <span id="strengthText" class="text-sm font-medium">-</span>
+                                    </div>
+                                    <div class="w-full bg-gray-700 rounded-full h-1">
+                                        <div id="strengthBar" class="strength-bar"></div>
+                                    </div>
+                                </div>
+                                <div id="passwordError" class="error-message hidden"></div>
+                            </div>
+
+                            <!-- Confirm Password Field -->
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-left">Confirm Password</label>
+                                <input 
+                                    type="password" 
+                                    id="confirmPassword" 
+                                    class="form-input" 
+                                    placeholder="Confirm your password"
+                                    required
+                                >
+                                <div id="confirmPasswordError" class="error-message hidden"></div>
+                                <div id="confirmPasswordSuccess" class="success-message hidden">Passwords match!</div>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button 
+                                type="submit" 
+                                id="submitBtn"
+                                class="btn-primary w-full text-xl py-4 disabled:opacity-50"
+                                disabled
+                            >
+                                ✈️ Let's go on a flight!
+                            </button>
+                        </form>
+
+                        <!-- Sign In Link -->
+                        <div class="text-center mt-6">
+                            <p class="text-gray-400">
+                                Already have an account? 
+                                <button onclick="goToSignIn()" class="text-purple-400 hover:text-purple-300 font-medium">
+                                    Sign in here
+                                </button>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="relative z-10 p-6 border-t border-gray-800">
+            <div class="container mx-auto text-center">
+                <p class="text-gray-400">
+                    © 2024 Akasa Airlines. Powered by AI and built for the future of aviation.
+                </p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Form validation and password strength
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const submitBtn = document.getElementById('submitBtn');
+        const strengthBar = document.getElementById('strengthBar');
+        const strengthText = document.getElementById('strengthText');
+
+        // Email validation
+        function validateEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        // Password strength calculation
+        function calculatePasswordStrength(password) {
+            let score = 0;
+            let feedback = [];
+
+            if (password.length >= 8) score += 1;
+            else feedback.push('At least 8 characters');
+
+            if (/[a-z]/.test(password)) score += 1;
+            else feedback.push('Lowercase letter');
+
+            if (/[A-Z]/.test(password)) score += 1;
+            else feedback.push('Uppercase letter');
+
+            if (/[0-9]/.test(password)) score += 1;
+            else feedback.push('Number');
+
+            if (/[^A-Za-z0-9]/.test(password)) score += 1;
+            else feedback.push('Special character');
+
+            return { score, feedback };
+        }
+
+        // Update password strength indicator
+        function updatePasswordStrength() {
+            const password = passwordInput.value;
+            const { score, feedback } = calculatePasswordStrength(password);
+
+            strengthBar.className = 'strength-bar';
+            
+            if (password.length === 0) {
+                strengthText.textContent = '-';
+                strengthBar.style.width = '0%';
+            } else if (score <= 2) {
+                strengthText.textContent = 'Weak';
+                strengthText.className = 'text-sm font-medium text-red-400';
+                strengthBar.classList.add('strength-weak');
+            } else if (score === 3) {
+                strengthText.textContent = 'Fair';
+                strengthText.className = 'text-sm font-medium text-yellow-400';
+                strengthBar.classList.add('strength-fair');
+            } else if (score === 4) {
+                strengthText.textContent = 'Good';
+                strengthText.className = 'text-sm font-medium text-blue-400';
+                strengthBar.classList.add('strength-good');
+            } else {
+                strengthText.textContent = 'Strong';
+                strengthText.className = 'text-sm font-medium text-green-400';
+                strengthBar.classList.add('strength-strong');
+            }
+
+            return score >= 3; // Minimum "Fair" strength required
+        }
+
+        // Show/hide error messages
+        function showError(fieldId, message) {
+            const errorDiv = document.getElementById(fieldId + 'Error');
+            const field = document.getElementById(fieldId);
+            
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            field.classList.add('error');
+            field.classList.remove('success');
+        }
+
+        function hideError(fieldId) {
+            const errorDiv = document.getElementById(fieldId + 'Error');
+            const field = document.getElementById(fieldId);
+            
+            errorDiv.classList.add('hidden');
+            field.classList.remove('error');
+        }
+
+        function showSuccess(fieldId) {
+            const field = document.getElementById(fieldId);
+            field.classList.add('success');
+            field.classList.remove('error');
+        }
+
+        // Validate form and enable/disable submit button
+        function validateForm() {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+
+            let isValid = true;
+
+            // Email validation
+            if (!email) {
+                showError('email', 'Email is required');
+                isValid = false;
+            } else if (!validateEmail(email)) {
+                showError('email', 'Please enter a valid email address');
+                isValid = false;
+            } else {
+                hideError('email');
+                showSuccess('email');
+            }
+
+            // Password validation
+            if (!password) {
+                showError('password', 'Password is required');
+                isValid = false;
+            } else if (!updatePasswordStrength()) {
+                showError('password', 'Password is too weak');
+                isValid = false;
+            } else {
+                hideError('password');
+                showSuccess('password');
+            }
+
+            // Confirm password validation
+            if (!confirmPassword) {
+                showError('confirmPassword', 'Please confirm your password');
+                document.getElementById('confirmPasswordSuccess').classList.add('hidden');
+                isValid = false;
+            } else if (password !== confirmPassword) {
+                showError('confirmPassword', 'Passwords do not match');
+                document.getElementById('confirmPasswordSuccess').classList.add('hidden');
+                isValid = false;
+            } else {
+                hideError('confirmPassword');
+                showSuccess('confirmPassword');
+                document.getElementById('confirmPasswordSuccess').classList.remove('hidden');
+            }
+
+            // Enable/disable submit button
+            submitBtn.disabled = !isValid;
+            return isValid;
+        }
+
+        // Event listeners
+        emailInput.addEventListener('input', validateForm);
+        passwordInput.addEventListener('input', validateForm);
+        confirmPasswordInput.addEventListener('input', validateForm);
+
+        // Form submission
+        document.getElementById('signupForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (validateForm()) {
+                // Show loading state
+                submitBtn.innerHTML = '✈️ Preparing for takeoff...';
+                submitBtn.disabled = true;
+                
+                // Simulate registration process
+                setTimeout(() => {
+                    // Redirect to dashboard
+                    window.location.href = 'index.html';
+                }, 2000);
+            }
+        });
+
+        // Navigation functions
+        function goBack() {
+            window.location.href = 'welcome.html';
+        }
+
+        function goToSignIn() {
+            window.location.href = 'signin.html';
+        }
+    </script>
+</body>
+</html>
