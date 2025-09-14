@@ -19,7 +19,7 @@ class GoogleOAuthService:
     
     def __init__(self, app=None):
         self.app = app
-        self.credentials_file = 'credentials.json'
+        self.credentials_file = 'src/config/credentials.json'
         # Extend scopes to include Calendar read/write access
         self.scopes = [
             'openid',

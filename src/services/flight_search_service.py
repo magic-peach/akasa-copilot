@@ -8,9 +8,8 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 import logging
-from advanced_risk_predictor import advanced_risk_predictor
-from weather_api_service import weather_api_service
-from aviation_api_service import aviation_api_service
+from src.services.advanced_risk_predictor import advanced_risk_predictor
+# Removed unused imports
 
 logger = logging.getLogger(__name__)
 

@@ -8,10 +8,8 @@ import json
 import requests
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
-from database import db
-from nlp_agent import nlp_agent
-from genai_agent import flight_status_agent
-from disruption_predictor import disruption_predictor
+from src.utils.database import db
+# Removed unused imports
 import logging
 
 logger = logging.getLogger(__name__)

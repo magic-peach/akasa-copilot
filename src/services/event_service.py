@@ -7,8 +7,8 @@ import time
 import queue
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
-from event_models import FlightState, Alert
-from database import db
+from src.models.event_models import FlightState, Alert
+from src.utils.database import db
 import logging
 
 logger = logging.getLogger(__name__)

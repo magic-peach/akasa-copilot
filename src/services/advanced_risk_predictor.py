@@ -591,6 +591,89 @@ class AdvancedRiskPredictor:
             'congestion': 0.60, 'weather_risk': 0.60,
             'infrastructure': 0.80, 'efficiency': 0.75
         }
+    
+    def analyze_flight_risk(self, flight_id: str) -> Dict[str, Any]:
+        """
+        Analyze risk for a specific flight by ID
+        Since flights are generated on-demand, we'll create a mock flight for analysis
+        """
+        try:
+            # For now, we'll create a sample flight structure for analysis
+            # In a real implementation, this would fetch from a database
+            sample_flight = self._create_sample_flight_from_id(flight_id)
+            
+            # Use the existing single flight analysis
+            analysis = self._analyze_single_flight(sample_flight)
+            
+            return {
+                'success': True,
+                'flight_id': flight_id,
+                'analysis': analysis,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error analyzing flight risk for {flight_id}: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'flight_id': flight_id
+            }
+    
+    def _create_sample_flight_from_id(self, flight_id: str) -> Dict[str, Any]:
+        """
+        Create a sample flight structure from flight ID
+        This is a temporary solution - in production, flights would be stored in a database
+        """
+        import uuid
+        import random
+        from datetime import datetime, timedelta
+        
+        # Use flight_id to seed random generation for consistency
+        random.seed(hash(flight_id) % 2**32)
+        
+        # Sample airports and airlines
+        airports = ['DEL', 'BOM', 'BLR', 'HYD', 'MAA', 'CCU', 'GOA', 'AMD']
+        airlines = ['Akasa Air', 'IndiGo', 'Vistara', 'Air India', 'SpiceJet']
+        
+        origin = random.choice(airports)
+        destination = random.choice([a for a in airports if a != origin])
+        airline = random.choice(airlines)
+        
+        # Generate flight times
+        departure_hour = random.randint(6, 22)
+        departure_time = datetime.now().replace(hour=departure_hour, minute=random.randint(0, 59), second=0, microsecond=0)
+        duration_minutes = random.randint(60, 300)
+        arrival_time = departure_time + timedelta(minutes=duration_minutes)
+        
+        # Generate flight number
+        flight_number = f"{airline[:2].upper()}{random.randint(100, 999)}"
+        
+        return {
+            'id': flight_id,
+            'flight_number': flight_number,
+            'airline': airline,
+            'origin': {
+                'code': origin,
+                'name': f'{origin} Airport',
+                'city': origin
+            },
+            'destination': {
+                'code': destination,
+                'name': f'{destination} Airport',
+                'city': destination
+            },
+            'departure_time': departure_time.strftime('%H:%M'),
+            'arrival_time': arrival_time.strftime('%H:%M'),
+            'departure_datetime': departure_time.isoformat(),
+            'arrival_datetime': arrival_time.isoformat(),
+            'price': random.randint(3000, 15000),
+            'seats_available': random.randint(5, 50),
+            'duration': f"{duration_minutes//60}h {duration_minutes%60}m",
+            'class': 'Economy',
+            'stops': 0,
+            'date': departure_time.strftime('%Y-%m-%d')
+        }
 
 # Global advanced risk predictor instance
 advanced_risk_predictor = AdvancedRiskPredictor()
