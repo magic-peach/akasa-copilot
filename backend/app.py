@@ -22,7 +22,7 @@ import atexit
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__, static_folder='frontend', static_url_path='/frontend')
+app = Flask(__name__, static_folder='views', static_url_path='/views')
 CORS(app)
 # Initialize Google OAuth for calendar integration
 oauth_service.init_app(app)
@@ -142,6 +142,18 @@ def _assess_booking_against_calendar(booking_date: str, origin: str, destination
 # ---------------------
 # Calendar OAuth Routes
 # ---------------------
+@app.route('/login')
+def login():
+    """Redirect user to Google OAuth for authentication"""
+    try:
+        url = oauth_service.get_authorization_url()
+        if not url:
+            return jsonify({'error': 'Failed to initiate Google OAuth'}), 500
+        return redirect(url)
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        return jsonify({'error': 'Login error', 'message': str(e)}), 500
+
 @app.route('/calendar/login')
 def calendar_login():
     """Redirect user to Google OAuth for Calendar access"""
@@ -154,10 +166,24 @@ def calendar_login():
         logger.error(f"Calendar login error: {str(e)}")
         return jsonify({'error': 'Login error', 'message': str(e)}), 500
 
+@app.route('/auth/callback')
+def auth_callback():
+    """OAuth callback route for /auth/callback - redirects to main callback with params"""
+    # Preserve all query parameters when redirecting
+    query_string = request.query_string.decode('utf-8')
+    if query_string:
+        return redirect(f'/callback?{query_string}')
+    else:
+        return redirect('/callback')
 @app.route('/oauth2callback')
 def oauth2callback():
-    """Legacy OAuth callback route - redirects to new callback"""
-    return redirect('/callback')
+    """Legacy OAuth callback route - redirects to new callback with params"""
+    # Preserve all query parameters when redirecting
+    query_string = request.query_string.decode('utf-8')
+    if query_string:
+        return redirect(f'/callback?{query_string}')
+    else:
+        return redirect('/callback')
 
 @app.route('/callback')
 def callback():
@@ -174,11 +200,44 @@ def callback():
         session['calendar_events'] = events
 
         logger.info(f"OAuth login successful for: {user_info.get('email') if user_info else 'unknown'}")
-        # Redirect to the main frontend index page
-        return redirect('/frontend/index.html')
+        # Store user info in session for frontend access
+        session['user_info'] = user_info
+        # Redirect to the search page
+        return redirect('/search')
     except Exception as e:
         logger.error(f"OAuth callback error: {str(e)}")
         return jsonify({'error': 'OAuth callback failed', 'message': str(e)}), 500
+
+@app.route('/user/info', methods=['GET'])
+def get_user_info():
+    """Get current user information from OAuth session"""
+    try:
+        if 'user_info' not in session:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        user_info = session['user_info']
+        return jsonify({
+            'success': True,
+            'user': {
+                'name': user_info.get('name', ''),
+                'email': user_info.get('email', ''),
+                'picture': user_info.get('picture', ''),
+                'is_authenticated': True
+            }
+        }), 200
+    except Exception as e:
+        logger.error(f"Error getting user info: {str(e)}")
+        return jsonify({'error': 'Failed to get user info'}), 500
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    """Logout user and clear session"""
+    try:
+        session.clear()
+        return jsonify({'success': True, 'message': 'Logged out successfully'}), 200
+    except Exception as e:
+        logger.error(f"Logout error: {str(e)}")
+        return jsonify({'error': 'Logout failed'}), 500
 
 @app.route('/calendar/events', methods=['GET'])
 def calendar_events():
@@ -254,7 +313,22 @@ def calendar_add_event():
 @app.route('/')
 def index():
     """Serve the welcome page"""
-    return app.send_static_file('welcome.html')
+    return app.send_static_file('index.html')
+
+@app.route('/signup')
+def signup():
+    """Serve the signup page"""
+    return app.send_static_file('signup.html')
+
+@app.route('/signin')
+def signin():
+    """Serve the signin page"""
+    return app.send_static_file('signin.html')
+
+@app.route('/search')
+def search():
+    """Serve the search page"""
+    return app.send_static_file('search.html')
 
 # Health check endpoint
 @app.route('/health', methods=['GET'])

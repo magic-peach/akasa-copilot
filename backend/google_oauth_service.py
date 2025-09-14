@@ -71,7 +71,7 @@ class GoogleOAuthService:
             )
             
             # Set redirect URI to match Google Console setting
-            flow.redirect_uri = 'http://localhost:5000/callback'
+            flow.redirect_uri = 'http://localhost:8081/auth/callback'
             
             return flow
             
@@ -117,7 +117,7 @@ class GoogleOAuthService:
             token_url = 'https://oauth2.googleapis.com/token'
             client_id = self.client_config['web']['client_id']
             client_secret = self.client_config['web']['client_secret']
-            redirect_uri = 'http://localhost:5000/callback'
+            redirect_uri = 'http://localhost:8081/auth/callback'
             
             token_data = {
                 'code': authorization_code,
