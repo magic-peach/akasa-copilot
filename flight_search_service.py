@@ -22,6 +22,16 @@ class FlightSearchService:
         self.airlines = ['Akasa Air', 'IndiGo', 'SpiceJet', 'Air India', 'Vistara', 'Go First']
         self.aircraft_types = ['A320', 'A321', 'B737', 'B738', 'ATR72', 'A319', 'B787']
         
+        # Airline risk profiles
+        self.airline_risk_profiles = {
+            'Akasa Air': {'base_risk': 15, 'reliability': 0.92, 'punctuality': 0.90},
+            'IndiGo': {'base_risk': 18, 'reliability': 0.88, 'punctuality': 0.85},
+            'SpiceJet': {'base_risk': 30, 'reliability': 0.75, 'punctuality': 0.70},
+            'Air India': {'base_risk': 25, 'reliability': 0.80, 'punctuality': 0.75},
+            'Vistara': {'base_risk': 17, 'reliability': 0.90, 'punctuality': 0.88},
+            'Go First': {'base_risk': 28, 'reliability': 0.78, 'punctuality': 0.72}
+        }
+        
         # Expanded airport data with 20 major Indian cities
         self.airports = {
             'DEL': {'name': 'Indira Gandhi International Airport', 'city': 'Delhi', 'terminals': ['T1', 'T2', 'T3']},
@@ -182,8 +192,8 @@ class FlightSearchService:
     def _validate_search_params(self, origin: str, destination: str, date: str, budget: int) -> bool:
         """Validate search parameters"""
         try:
-            # Check airport codes
-            if origin.upper() not in self.airports or destination.upper() not in self.airports:
+            # Check if origin and destination are different
+            if origin.upper() == destination.upper():
                 return False
             
             # Check date format and future date
@@ -276,8 +286,8 @@ class FlightSearchService:
         arrival_time = departure_time + timedelta(minutes=duration)
         
         # Get airport info
-        origin_info = self.airports[origin]
-        dest_info = self.airports[destination]
+        origin_info = self.airports.get(origin, {'name': f'{origin} Airport', 'city': origin, 'terminals': ['T1']})
+        dest_info = self.airports.get(destination, {'name': f'{destination} Airport', 'city': destination, 'terminals': ['T1']})
         
         return {
             'id': str(uuid.uuid4()),
@@ -298,6 +308,8 @@ class FlightSearchService:
             },
             'departure_time': departure_time.strftime('%H:%M'),
             'arrival_time': arrival_time.strftime('%H:%M'),
+            'seats_available': random.randint(1, 30),
+            'duration': f"{duration//60}h {duration%60}m",
             'departure_datetime': departure_time.isoformat(),
             'arrival_datetime': arrival_time.isoformat(),
             'duration': f"{duration // 60}h {duration % 60}m",

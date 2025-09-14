@@ -28,6 +28,8 @@
         body { 
             background: linear-gradient(135deg, #121212 0%, #1a1a1a 100%);
             min-height: 100vh;
+            overflow-x: hidden;
+            perspective: 1000px;
         }
         .hero-glow {
             background: radial-gradient(circle at center, rgba(108, 99, 255, 0.1) 0%, transparent 70%);
@@ -42,6 +44,8 @@
             transition: all 0.3s ease;
             font-weight: 600;
             font-size: 18px;
+            position: relative;
+            z-index: 10;
         }
         .btn-primary:hover {
             transform: translateY(-2px);
@@ -91,6 +95,115 @@
         .floating {
             animation: float 3s ease-in-out infinite;
         }
+        
+        /* Aircraft styles */
+        .aircraft-container {
+            position: absolute;
+            right: -100px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 400px;
+            height: 200px;
+            z-index: 5;
+            transition: all 2s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+        
+        .aircraft {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: all 2s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+        
+        .aircraft img {
+            width: 100%;
+            height: auto;
+            filter: drop-shadow(0 0 30px rgba(108, 99, 255, 0.8));
+        }
+        
+        /* Takeoff animation */
+        @keyframes takeoff {
+            0% { 
+                transform: translateX(0) translateY(0) rotate(0deg) scale(1); 
+                opacity: 1;
+            }
+            20% { 
+                transform: translateX(-50px) translateY(-20px) rotate(-5deg) scale(1.1); 
+                opacity: 1;
+            }
+            100% { 
+                transform: translateX(-2000px) translateY(-500px) rotate(-15deg) scale(0.5); 
+                opacity: 0;
+            }
+        }
+        
+        .takeoff {
+            animation: takeoff 4s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+        }
+        
+        /* Cloud effects */
+        .clouds {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+        
+        .cloud {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            filter: blur(20px);
+        }
+        
+        .cloud-1 {
+            width: 200px;
+            height: 100px;
+            top: 20%;
+            left: 10%;
+            animation: cloud-move-1 15s linear infinite;
+        }
+        
+        .cloud-2 {
+            width: 300px;
+            height: 150px;
+            top: 40%;
+            left: 30%;
+            animation: cloud-move-2 20s linear infinite;
+        }
+        
+        .cloud-3 {
+            width: 250px;
+            height: 120px;
+            top: 70%;
+            left: 60%;
+            animation: cloud-move-3 18s linear infinite;
+        }
+        
+        @keyframes cloud-move-1 {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100vw); }
+        }
+        
+        @keyframes cloud-move-2 {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100vw); }
+        }
+        
+        @keyframes cloud-move-3 {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100vw); }
+        }
+        
+        .clouds.active {
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="text-white">
@@ -118,6 +231,21 @@
         <!-- Hero Section -->
         <main class="flex-1 flex items-center justify-center relative">
             <div class="hero-glow absolute inset-0"></div>
+            
+            <!-- Clouds Effect -->
+            <div class="clouds" id="clouds">
+                <div class="cloud cloud-1"></div>
+                <div class="cloud cloud-2"></div>
+                <div class="cloud cloud-3"></div>
+            </div>
+            
+            <!-- Aircraft -->
+            <div class="aircraft-container" id="aircraftContainer">
+                <div class="aircraft" id="aircraft">
+                    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" alt="Aircraft" id="aircraftImage" style="opacity: 0;">
+                </div>
+            </div>
+            
             <div class="container mx-auto px-6 text-center relative z-10">
                 <div class="max-w-4xl mx-auto">
                     <!-- Main Title -->
@@ -132,17 +260,18 @@
 
                     <!-- Tagline -->
                     <p class="text-xl md:text-2xl mb-12 leading-relaxed tagline max-w-3xl mx-auto">
-                        An event-driven platform that keeps a centralized customer profile and event history, 
-                        ingests multi-source real-time flight and airport signals, runs disruption detection + 
-                        predictive analytics, and executes policy-driven automated rebook/notification/resource-optimization 
-                        actions — all exposed via resilient APIs and a self-service UI.
+                        Soaring Through the Skies
+                    </p>
+                    <p class="text-lg mb-12 text-gray-300 max-w-3xl mx-auto">
+                        Our futuristic airline platform, where technology and innovation
+                        converge to redefine the way you explore the skies
                     </p>
 
                     <!-- CTA Buttons -->
                     <div class="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16">
-                        <a href="http://localhost:5000/login" class="btn-primary text-xl py-4 px-8 text-center">
-                            ✈️ Sign in with Google
-                        </a>
+                        <button id="takeoffButton" class="btn-primary text-xl py-4 px-8 text-center">
+                            ✈️ Begin your journey
+                        </button>
                     </div>
 
                     <!-- Feature Highlights -->
@@ -198,7 +327,40 @@
     </div>
 
     <script>
-        // No navigation functions needed as we're using direct links
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load aircraft image
+            const aircraftImage = document.getElementById('aircraftImage');
+            aircraftImage.src = 'https://i.imgur.com/JZ3wMRY.png'; // Purple airplane image
+            aircraftImage.onload = function() {
+                aircraftImage.style.opacity = '1';
+            };
+            
+            // Setup takeoff button
+            const takeoffButton = document.getElementById('takeoffButton');
+            const aircraft = document.getElementById('aircraft');
+            const clouds = document.getElementById('clouds');
+            
+            takeoffButton.addEventListener('click', function() {
+                // Start the takeoff animation
+                aircraft.classList.add('takeoff');
+                clouds.classList.add('active');
+                
+                // Play takeoff sound
+                const takeoffSound = new Audio('https://soundbible.com/mp3/Jet%20Airplane%20Takeoff-SoundBible.com-1473791588.mp3');
+                takeoffSound.volume = 0.3;
+                takeoffSound.play().catch(e => console.log('Audio play failed:', e));
+                
+                // Disable the button during animation
+                takeoffButton.disabled = true;
+                takeoffButton.style.opacity = '0.7';
+                takeoffButton.textContent = 'Taking off...';
+                
+                // Redirect after animation completes
+                setTimeout(function() {
+                    window.location.href = 'http://localhost:8081/frontend/index.html';
+                }, 3000);
+            });
+        });
     </script>
 </body>
 </html>
