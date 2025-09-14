@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session, redirect, url_for
 from flask_cors import CORS
 from database import db
 from models import Booking
@@ -12,6 +12,7 @@ from voice_chatbot import voice_chatbot
 from notification_service import notification_service
 from flight_search_service import flight_search_service
 from advanced_risk_predictor import advanced_risk_predictor
+from google_oauth_service import oauth_service
 import logging
 import random
 from datetime import datetime, timedelta
@@ -21,14 +22,239 @@ import atexit
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='frontend', static_url_path='/frontend')
 CORS(app)
+# Initialize Google OAuth for calendar integration
+oauth_service.init_app(app)
 
 # Start the event processing background worker
 event_processor.start_background_worker()
 
 # Ensure background worker stops when app shuts down
 atexit.register(event_processor.stop_background_worker)
+
+# =====================
+# Google Calendar Integration (OAuth + Helpers)
+# =====================
+def _parse_event_start_date(ev):
+    """Parse event start into date object"""
+    try:
+        start = ev.get('start', {})
+        val = start.get('dateTime') or start.get('date')
+        if not val:
+            return None
+        if 'T' in val:
+            dt = datetime.fromisoformat(val.replace('Z', '+00:00'))
+            return dt.date()
+        else:
+            return datetime.strptime(val, '%Y-%m-%d').date()
+    except Exception:
+        return None
+
+def _events_from_session(max_results: int = 50):
+    """Get cached Google events or fetch and cache them"""
+    try:
+        events = session.get('calendar_events')
+        if not events:
+            events = oauth_service.list_upcoming_events(max_results)
+            if events is not None:
+                session['calendar_events'] = events
+        return events or []
+    except Exception:
+        return []
+
+def _build_travel_windows(events):
+    """Build travel windows from events: day-before and day-of each event"""
+    windows = set()
+    details = []
+    for ev in events:
+        d = _parse_event_start_date(ev)
+        if not d:
+            continue
+        windows.add(d.isoformat())
+        windows.add((d - timedelta(days=1)).isoformat())
+        details.append({
+            'summary': ev.get('summary', 'No Title'),
+            'event_date': d.isoformat(),
+            'suggested_travel_dates': [(d - timedelta(days=1)).isoformat(), d.isoformat()],
+            'location': ev.get('location', '')
+        })
+    return sorted(list(windows)), details
+
+def get_calendar_suggestions_for_search(date_str: str):
+    """Return recommended dates derived from Google Calendar for search UX"""
+    events = _events_from_session()
+    if not events:
+        return {}
+    windows, _ = _build_travel_windows(events)
+    return {
+        'recommended_dates': windows,
+        'source': 'google_calendar',
+        'count_events_considered': len(events)
+    }
+
+def _estimate_cancellation_cost(origin: str, destination: str):
+    """Heuristic estimate for cancellation costs now vs a week later"""
+    route_key = f"{origin}-{destination}"
+    base = rebooking_service.BASE_PRICES.get(route_key, 4000)
+    cancel_now = int(base * 0.20 + 500)
+    cancel_in_week = int(base * 0.35 + 500)
+    return {
+        'currency': 'INR',
+        'cancel_now': cancel_now,
+        'cancel_in_week': cancel_in_week,
+        'assumptions': 'Heuristic estimate: 20%+₹500 if cancelled now vs 35%+₹500 if cancelled in 7 days.'
+    }
+
+def _assess_booking_against_calendar(booking_date: str, origin: str, destination: str):
+    """Compare a booking date to calendar event windows and compute advice/warnings"""
+    events = _events_from_session()
+    if not events:
+        return None
+    windows, details = _build_travel_windows(events)
+    on_track = booking_date in windows
+
+    nearest = None
+    try:
+        bdate = datetime.strptime(booking_date, '%Y-%m-%d').date()
+        min_delta = None
+        for d in details:
+            ed = datetime.strptime(d['event_date'], '%Y-%m-%d').date()
+            delta = abs((ed - bdate).days)
+            if min_delta is None or delta < min_delta:
+                min_delta = delta
+                nearest = d
+    except Exception:
+        pass
+
+    warning = None
+    if not on_track and nearest:
+        warning = f"Booking date {booking_date} does not align with nearby calendar event on {nearest['event_date']} ('{nearest['summary']}')."
+
+    return {
+        'aligned_with_schedule': on_track,
+        'nearest_event': nearest,
+        'warning': warning,
+        'recommended_dates': windows,
+        'cancellation_cost_estimate': _estimate_cancellation_cost(origin, destination)
+    }
+
+# ---------------------
+# Calendar OAuth Routes
+# ---------------------
+@app.route('/calendar/login')
+def calendar_login():
+    """Redirect user to Google OAuth for Calendar access"""
+    try:
+        url = oauth_service.get_authorization_url()
+        if not url:
+            return jsonify({'error': 'Failed to initiate Google OAuth'}), 500
+        return redirect(url)
+    except Exception as e:
+        logger.error(f"Calendar login error: {str(e)}")
+        return jsonify({'error': 'Login error', 'message': str(e)}), 500
+
+@app.route('/oauth2callback')
+def oauth2callback():
+    """Legacy OAuth callback route - redirects to new callback"""
+    return redirect('/callback')
+
+@app.route('/callback')
+def callback():
+    """Handle Google OAuth callback, store credentials, and prefetch events"""
+    try:
+        authorization_code = request.args.get('code')
+        state = request.args.get('state')
+        if not authorization_code:
+            return jsonify({'error': 'No authorization code'}), 400
+
+        user_info = oauth_service.handle_oauth_callback(authorization_code, state)
+        # Prefetch and cache events for faster UX
+        events = oauth_service.list_upcoming_events(50)
+        session['calendar_events'] = events
+
+        logger.info(f"OAuth login successful for: {user_info.get('email') if user_info else 'unknown'}")
+        # Redirect to the main frontend index page
+        return redirect('/frontend/index.html')
+    except Exception as e:
+        logger.error(f"OAuth callback error: {str(e)}")
+        return jsonify({'error': 'OAuth callback failed', 'message': str(e)}), 500
+
+@app.route('/calendar/events', methods=['GET'])
+def calendar_events():
+    """Return upcoming Google Calendar events"""
+    if 'credentials' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated with Google'}), 401
+    # Refresh events from Google Calendar
+    events = oauth_service.list_upcoming_events(50)
+    session['calendar_events'] = events
+    return jsonify({'success': True, 'count': len(events), 'events': events}), 200
+
+@app.route('/calendar/sync', methods=['GET'])
+def sync_calendar_events():
+    """Sync Google Calendar events and return travel opportunities"""
+    if 'credentials' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated with Google'}), 401
+    # Refresh events from Google Calendar
+    events = oauth_service.list_upcoming_events(50)
+    session['calendar_events'] = events
+    
+    # Process events to find travel opportunities
+    windows, details = _build_travel_windows(events)
+    
+    return jsonify({
+        'success': True, 
+        'count': len(events), 
+        'events': events,
+        'travel_windows': windows,
+        'travel_details': details
+    }), 200
+
+@app.route('/calendar/travel-windows', methods=['GET'])
+def calendar_travel_windows():
+    """Return recommended travel dates derived from Calendar events"""
+    if 'credentials' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated with Google'}), 401
+    events = _events_from_session()
+    windows, details = _build_travel_windows(events)
+    return jsonify({'success': True, 'recommended_dates': windows, 'details': details}), 200
+
+@app.route('/calendar/add-event', methods=['POST'])
+def calendar_add_event():
+    """Create a new event in the user's Google Calendar"""
+    if 'credentials' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated with Google'}), 401
+    try:
+        data = request.get_json() or {}
+        summary = data.get('summary', 'Flight')
+        description = data.get('description', '')
+        location = data.get('location', '')
+        start = data.get('start')  # RFC3339 string
+        end = data.get('end')      # RFC3339 string
+
+        if not start or not end:
+            return jsonify({'error': 'start and end are required in RFC3339 format'}), 400
+
+        event_body = {
+            'summary': summary,
+            'description': description,
+            'location': location,
+            'start': {'dateTime': start},
+            'end': {'dateTime': end}
+        }
+        created = oauth_service.create_calendar_event(event_body)
+        if not created:
+            return jsonify({'success': False, 'message': 'Failed to create calendar event'}), 500
+        return jsonify({'success': True, 'event': created}), 201
+    except Exception as e:
+        logger.error(f"Error creating calendar event: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# Root route to serve welcome page
+@app.route('/')
+def index():
+    """Serve the welcome page"""
+    return app.send_static_file('welcome.html')
 
 # Health check endpoint
 @app.route('/health', methods=['GET'])
@@ -72,9 +298,40 @@ def create_booking():
             created_booking = result.data[0]
             logger.info(f"Created booking with ID: {created_booking['id']}")
             
+            # Assess against Google Calendar if available and provide advice
+            schedule_advice = None
+            try:
+                schedule_advice = _assess_booking_against_calendar(
+                    created_booking['depart_date'],
+                    created_booking['origin'],
+                    created_booking['destination']
+                )
+            except Exception:
+                schedule_advice = None
+
+            # Optionally create a Google Calendar event for the booking (all-day)
+            calendar_event = None
+            try:
+                if 'credentials' in session:
+                    start_date = datetime.strptime(created_booking['depart_date'], '%Y-%m-%d').date()
+                    event_body = {
+                        'summary': f"Flight {created_booking['flight_number']} {created_booking['origin']} -> {created_booking['destination']}",
+                        'description': f"Akasa booking ID: {created_booking['id']}",
+                        'start': {'date': start_date.isoformat()},
+                        'end': {'date': (start_date + timedelta(days=1)).isoformat()}
+                    }
+                    calendar_event = oauth_service.create_calendar_event(event_body)
+            except Exception as e:
+                logger.error(f"Failed to create calendar event: {str(e)}")
+
             return jsonify({
                 'message': 'Booking created successfully',
-                'booking': created_booking
+                'booking': created_booking,
+                'schedule_advice': schedule_advice,
+                'calendar_event': {
+                    'id': calendar_event.get('id'),
+                    'htmlLink': calendar_event.get('htmlLink')
+                } if calendar_event else None
             }), 201
         else:
             logger.error("Failed to create booking - no data returned")
@@ -1020,6 +1277,13 @@ def search_flights():
         
         logger.info(f"Found {len(flights)} flights for {origin} to {destination}")
         
+        calendar_suggestions = get_calendar_suggestions_for_search(date)
+        try:
+            recommended = calendar_suggestions.get('recommended_dates') or []
+            date_in_recommended = date in recommended
+        except Exception:
+            date_in_recommended = False
+
         return jsonify({
             'success': True,
             'flights': flights,
@@ -1030,6 +1294,11 @@ def search_flights():
                 'date': date,
                 'budget': budget,
                 'passenger_count': passenger_count
+            },
+            'calendar_suggestions': calendar_suggestions,
+            'date_alignment': {
+                'is_recommended_day': date_in_recommended,
+                'reason': 'Date aligns with upcoming calendar event windows' if date_in_recommended else 'Date not in recommended travel windows derived from Google Calendar'
             },
             'timestamp': datetime.utcnow().isoformat()
         }), 200
@@ -1048,34 +1317,74 @@ def get_flight_risk_analysis(flight_id):
     Returns comprehensive risk breakdown with charts data
     """
     try:
-        # For demo purposes, generate risk analysis data
-        # In production, this would fetch from database or calculate based on flight_id
+        # Use enhanced risk predictor with real-time data
+        from enhanced_risk_predictor import enhanced_risk_predictor
+        from aviation_api_service import aviation_api_service
         
-        risk_analysis = {
-            'flight_id': flight_id,
-            'overall_risk_score': random.uniform(65, 95),
-            'risk_level': random.choice(['Low Risk', 'Medium Risk', 'High Risk']),
-            'risk_factors': {
-                'weather_risk': random.uniform(10, 40),
-                'operational_risk': random.uniform(15, 35),
-                'airport_risk': random.uniform(10, 30),
-                'seasonal_risk': random.uniform(5, 25),
-                'regulatory_risk': random.uniform(5, 15),
-                'passenger_risk': random.uniform(10, 30),
-                'technology_risk': random.uniform(5, 20),
-                'pricing_risk': random.uniform(10, 25)
-            },
-            'recommendations': [
-                "Check weather forecast before travel",
-                "Arrive at airport 2 hours early",
-                "Consider travel insurance"
-            ],
-            'historical_performance': {
-                'on_time_percentage': random.uniform(75, 95),
-                'average_delay_minutes': random.randint(5, 30),
-                'cancellation_rate': random.uniform(1, 5)
+        # Get flight details from aviation API
+        flight_status = aviation_api_service.get_flight_status(flight_id)
+        
+        if "error" in flight_status:
+            # Fall back to demo data if API fails
+            risk_analysis = {
+                'flight_id': flight_id,
+                'overall_risk_score': random.uniform(65, 95),
+                'risk_level': random.choice(['Low Risk', 'Medium Risk', 'High Risk']),
+                'risk_factors': {
+                    'weather_risk': random.uniform(10, 40),
+                    'operational_risk': random.uniform(15, 35),
+                    'airport_risk': random.uniform(10, 30),
+                    'seasonal_risk': random.uniform(5, 25),
+                    'regulatory_risk': random.uniform(5, 15),
+                    'passenger_risk': random.uniform(10, 30),
+                    'technology_risk': random.uniform(5, 20),
+                    'pricing_risk': random.uniform(10, 25)
+                },
+                'recommendations': [
+                    "Check weather forecast before travel",
+                    "Arrive at airport 2 hours early",
+                    "Consider travel insurance"
+                ],
+                'historical_performance': {
+                    'on_time_percentage': random.uniform(75, 95),
+                    'average_delay_minutes': random.randint(5, 30),
+                    'cancellation_rate': random.uniform(1, 5)
+                },
+                'using_real_time_data': False
             }
-        }
+        else:
+            # Create flight object for risk prediction
+            flight = {
+                'flight_number': flight_id,
+                'airline': flight_status.get('airline', 'Unknown'),
+                'origin': {'code': flight_status.get('departure', {}).get('iataCode', 'DEL')},
+                'destination': {'code': flight_status.get('arrival', {}).get('iataCode', 'BOM')},
+                'departure_datetime': flight_status.get('departure', {}).get('scheduledTime', datetime.now().isoformat()),
+                'price': random.randint(5000, 15000)  # Placeholder price
+            }
+            
+            # Get enhanced risk analysis
+            analysis = enhanced_risk_predictor._analyze_single_flight_with_real_time_data(flight)
+            
+            # Create comprehensive risk analysis response
+            risk_analysis = {
+                'flight_id': flight_id,
+                'overall_risk_score': analysis.get('risk_score', 75),
+                'risk_level': analysis.get('risk_level', 'Medium Risk'),
+                'risk_factors': analysis.get('risk_factors', {}),
+                'real_time_data': analysis.get('real_time_data', {}),
+                'recommendations': analysis.get('recommendation', '').split('. ') if analysis.get('recommendation') else [
+                    "Check weather forecast before travel",
+                    "Monitor flight status before departure"
+                ],
+                'historical_performance': {
+                    'on_time_percentage': random.uniform(75, 95),
+                    'average_delay_minutes': random.randint(5, 30),
+                    'cancellation_rate': random.uniform(1, 5)
+                },
+                'using_real_time_data': True
+            }
+        
         
         # Adjust risk level based on score
         score = risk_analysis['overall_risk_score']
@@ -1106,7 +1415,7 @@ def get_flight_risk_analysis(flight_id):
 def get_pnr_details(pnr_number):
     """
     Get flight details and status by PNR number
-    Returns mock flight data for demo purposes
+    Returns real-time flight data from aviation API
     """
     try:
         if not pnr_number or len(pnr_number) < 6:
@@ -1115,55 +1424,115 @@ def get_pnr_details(pnr_number):
                 'message': 'PNR number must be at least 6 characters'
             }), 400
         
-        # Generate mock PNR data
-        mock_pnr_data = {
-            'pnr': pnr_number.upper(),
-            'status': random.choice(['Confirmed', 'Waitlisted', 'Cancelled']),
-            'booking_date': (datetime.now() - timedelta(days=random.randint(1, 30))).strftime('%Y-%m-%d'),
-            'passenger_name': 'John Doe',
-            'contact_email': 'john.doe@example.com',
-            'contact_phone': '+91-9876543210',
-            'flight_details': {
-                'flight_number': f"QP{random.randint(1000, 9999)}",
-                'airline': 'Akasa Air',
-                'origin': {
-                    'code': 'DEL',
-                    'name': 'Indira Gandhi International Airport',
-                    'city': 'Delhi',
-                    'terminal': 'T3'
+        # Use aviation API to get real PNR details
+        from aviation_api_service import aviation_api_service
+        
+        # Get PNR details from aviation API
+        pnr_data = aviation_api_service.get_flight_by_pnr(pnr_number)
+        
+        if "error" in pnr_data:
+            # Fall back to mock data if API fails
+            logger.warning(f"Failed to get real-time PNR data: {pnr_data.get('error')}. Using mock data.")
+            
+            # Generate mock PNR data
+            mock_pnr_data = {
+                'pnr': pnr_number.upper(),
+                'status': random.choice(['Confirmed', 'Waitlisted', 'Cancelled']),
+                'booking_date': (datetime.now() - timedelta(days=random.randint(1, 30))).strftime('%Y-%m-%d'),
+                'passenger_name': 'John Doe',
+                'contact_email': 'john.doe@example.com',
+                'contact_phone': '+91-9876543210',
+                'flight_details': {
+                    'flight_number': f"QP{random.randint(1000, 9999)}",
+                    'airline': 'Akasa Air',
+                    'origin': {
+                        'code': 'DEL',
+                        'name': 'Indira Gandhi International Airport',
+                        'city': 'Delhi',
+                        'terminal': 'T3'
+                    },
+                    'destination': {
+                        'code': 'BOM',
+                        'name': 'Chhatrapati Shivaji Maharaj International Airport',
+                        'city': 'Mumbai',
+                        'terminal': 'T2'
+                    },
+                    'departure_date': (datetime.now() + timedelta(days=random.randint(1, 30))).strftime('%Y-%m-%d'),
+                    'departure_time': f"{random.randint(6, 22):02d}:{random.choice(['00', '15', '30', '45'])}",
+                    'arrival_time': f"{random.randint(8, 23):02d}:{random.choice(['00', '15', '30', '45'])}",
+                    'duration': '2h 15m',
+                    'aircraft_type': 'A320',
+                    'seat_number': f"{random.randint(1, 30)}{random.choice(['A', 'B', 'C', 'D', 'E', 'F'])}",
+                    'class': 'Economy',
+                    'meal_preference': random.choice(['Vegetarian', 'Non-Vegetarian', 'Vegan']),
+                    'baggage_allowance': '15kg'
                 },
-                'destination': {
-                    'code': 'BOM',
-                    'name': 'Chhatrapati Shivaji Maharaj International Airport',
-                    'city': 'Mumbai',
-                    'terminal': 'T2'
-                },
-                'departure_date': (datetime.now() + timedelta(days=random.randint(1, 30))).strftime('%Y-%m-%d'),
-                'departure_time': f"{random.randint(6, 22):02d}:{random.choice(['00', '15', '30', '45'])}",
-                'arrival_time': f"{random.randint(8, 23):02d}:{random.choice(['00', '15', '30', '45'])}",
-                'duration': '2h 15m',
-                'aircraft_type': 'A320',
-                'seat_number': f"{random.randint(1, 30)}{random.choice(['A', 'B', 'C', 'D', 'E', 'F'])}",
-                'class': 'Economy',
-                'meal_preference': random.choice(['Vegetarian', 'Non-Vegetarian', 'Vegan']),
-                'baggage_allowance': '15kg'
-            },
-            'current_status': {
+                'using_real_time_data': False,
+                'current_status': {
                 'status': random.choice(['On Time', 'Delayed', 'Boarding', 'Departed', 'Arrived']),
                 'gate': f"G{random.randint(1, 25)}",
                 'terminal': 'T3',
                 'delay_minutes': random.randint(0, 60) if random.choice([True, False]) else 0,
                 'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
-        }
-        
-        logger.info(f"Retrieved PNR details for {pnr_number}")
-        
-        return jsonify({
-            'success': True,
-            'pnr_details': mock_pnr_data,
-            'timestamp': datetime.utcnow().isoformat()
-        }), 200
+            }
+            
+            return jsonify({
+                'success': True,
+                'pnr_details': mock_pnr_data,
+                'timestamp': datetime.utcnow().isoformat()
+            }), 200
+        else:
+            # Format the API response for frontend
+            flight_details = pnr_data.get('flight_details', {})
+            
+            # Create a structured response with real-time data
+            real_time_pnr = {
+                'pnr': pnr_number.upper(),
+                'status': flight_details.get('status', 'Confirmed'),
+                'booking_date': pnr_data.get('timestamp', datetime.now().strftime('%Y-%m-%d')),
+                'passenger_name': pnr_data.get('passenger_name', 'Passenger'),
+                'flight_details': {
+                    'flight_number': flight_details.get('flight_number', ''),
+                    'airline': flight_details.get('airline', 'Unknown'),
+                    'origin': {
+                        'code': flight_details.get('origin', ''),
+                        'name': f"{flight_details.get('origin', '')} Airport",
+                        'city': flight_details.get('origin', ''),
+                        'terminal': 'T1'
+                    },
+                    'destination': {
+                        'code': flight_details.get('destination', ''),
+                        'name': f"{flight_details.get('destination', '')} Airport",
+                        'city': flight_details.get('destination', ''),
+                        'terminal': 'T1'
+                    },
+                    'departure_date': flight_details.get('departure_date', ''),
+                    'departure_time': flight_details.get('departure_time', ''),
+                    'arrival_time': flight_details.get('arrival_time', ''),
+                    'duration': '2h 15m',  # Placeholder
+                    'aircraft_type': 'A320',  # Placeholder
+                    'seat_number': pnr_data.get('seat', 'Not assigned'),
+                    'class': pnr_data.get('class', 'Economy'),
+                    'baggage_allowance': pnr_data.get('baggage_allowance', '15kg')
+                },
+                'current_status': {
+                    'status': flight_details.get('status', 'On Time'),
+                    'gate': 'TBD',
+                    'terminal': 'T1',
+                    'delay_minutes': 0,
+                    'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                },
+                'using_real_time_data': True
+            }
+            
+            logger.info(f"Retrieved real-time PNR details for {pnr_number}")
+            
+            return jsonify({
+                'success': True,
+                'pnr_details': real_time_pnr,
+                'timestamp': datetime.utcnow().isoformat()
+            }), 200
         
     except Exception as e:
         logger.error(f"Error retrieving PNR details for {pnr_number}: {str(e)}")
@@ -1224,7 +1593,7 @@ def get_comprehensive_flight_analysis():
 
 if __name__ == '__main__':
     try:
-        app.run(debug=True, host='0.0.0.0', port=8080)
+        app.run(debug=True, host='0.0.0.0', port=8081)
     finally:
-        # Ensure background worker stops when app shuts down
+        # Ensure background worker is stopped
         event_processor.stop_background_worker()

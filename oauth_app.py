@@ -48,8 +48,13 @@ def login():
         return f"Login error: {str(e)}", 500
 
 @app.route('/oauth2callback')
-def oauth_callback():
-    """Handle OAuth callback from Google"""
+def oauth2callback():
+    """Legacy OAuth callback route - redirects to new callback"""
+    return redirect('/callback')
+
+@app.route('/callback')
+def callback():
+    """Handle OAuth callback from Google - matches redirect URI in Google Console"""
     try:
         # Get authorization code and state from callback
         authorization_code = request.args.get('code')
@@ -63,7 +68,8 @@ def oauth_callback():
         
         if user_info:
             logger.info(f"OAuth login successful for: {user_info.get('email')}")
-            return redirect(url_for('dashboard'))
+            # Redirect directly to the main app's index page
+            return redirect('http://localhost:8081/frontend/index.html')
         else:
             return "Error: OAuth authentication failed", 400
             
@@ -99,8 +105,8 @@ def get_user():
 def goto_app():
     """Redirect to main Akasa application"""
     if oauth_service.is_user_authenticated():
-        # Redirect to main app on port 8080
-        return redirect('http://localhost:8080/frontend/index.html')
+        # Redirect to main app on port 8081
+        return redirect('http://localhost:8081/frontend/index.html')
     else:
         return redirect(url_for('home'))
 
@@ -257,10 +263,10 @@ DASHBOARD_TEMPLATE = """
                     </p>
                     
                     <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                        <a href="http://localhost:8080/frontend/index.html" class="btn-primary text-lg py-3 px-6">
+                        <a href="http://localhost:8081/frontend/index.html" class="btn-primary text-lg py-3 px-6">
                             ✈️ Start Flight Search
                         </a>
-                        <a href="http://localhost:8080/frontend/welcome.html" class="btn-secondary text-lg py-3 px-6">
+                        <a href="http://localhost:8081/frontend/welcome.html" class="btn-secondary text-lg py-3 px-6">
                             📖 View Welcome Page
                         </a>
                     </div>
@@ -289,7 +295,7 @@ DASHBOARD_TEMPLATE = """
 
 if __name__ == '__main__':
     try:
-        logger.info("Starting Google OAuth Flask app on localhost:5001")
-        app.run(debug=True, host='localhost', port=5001)
+        logger.info("Starting Google OAuth Flask app on localhost:5000")
+        app.run(debug=True, host='localhost', port=5000)
     except Exception as e:
         logger.error(f"Error starting OAuth app: {str(e)}")

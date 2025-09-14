@@ -9,6 +9,9 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 import logging
 from advanced_risk_predictor import advanced_risk_predictor
+from enhanced_risk_predictor import enhanced_risk_predictor
+from weather_api_service import weather_api_service
+from aviation_api_service import aviation_api_service
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +90,7 @@ class FlightSearchService:
         }
     
     def search_flights(self, origin: str, destination: str, date: str, budget: int, 
-                      passenger_count: int = 1) -> List[Dict[str, Any]]:
+                      passenger_count: int = 1, use_enhanced_prediction: bool = True) -> List[Dict[str, Any]]:
         """
         Search for flights based on criteria and generate multiple options
         
@@ -95,8 +98,9 @@ class FlightSearchService:
             origin: Origin airport code
             destination: Destination airport code  
             date: Travel date in YYYY-MM-DD format
-            budget: Maximum budget per passenger
+            budget: Maximum budget in INR
             passenger_count: Number of passengers
+            use_enhanced_prediction: Whether to use enhanced risk prediction with real-time data
             
         Returns:
             List of flight options with risk scores
@@ -109,30 +113,61 @@ class FlightSearchService:
             # Generate flight options
             flights = self._generate_flight_options(origin, destination, date, budget, passenger_count)
             
-            # Add risk scores to each flight using advanced predictor
+            # Add basic risk scores to each flight
             for flight in flights:
                 flight['risk_analysis'] = self._calculate_risk_score(flight)
             
-            # Get comprehensive analysis for all flights
-            comprehensive_analysis = advanced_risk_predictor.predict_comprehensive_risk(flights)
-            
-            # Update flights with advanced risk scores if available
-            if comprehensive_analysis.get('success'):
-                flight_analyses = comprehensive_analysis['flight_analyses']
-                for i, flight in enumerate(flights):
-                    if i < len(flight_analyses):
-                        analysis = flight_analyses[i]
-                        flight['risk_analysis'].update({
-                            'overall_risk_score': analysis['risk_score'],
-                            'risk_level': analysis['risk_level'],
-                            'risk_color': analysis['risk_color'],
-                            'advanced_recommendation': analysis['recommendation'],
-                            'confidence': analysis['confidence']
-                        })
+            if use_enhanced_prediction:
+                # Use enhanced risk predictor with real-time data
+                logger.info(f"Using enhanced risk prediction with real-time data for {len(flights)} flights")
+                comprehensive_analysis = enhanced_risk_predictor.predict_comprehensive_risk(flights)
                 
-                # Add comprehensive analysis to the first flight for access
-                if flights:
-                    flights[0]['comprehensive_analysis'] = comprehensive_analysis
+                # Update flights with enhanced risk scores
+                if 'flight_analyses' in comprehensive_analysis:
+                    flight_analyses = comprehensive_analysis['flight_analyses']
+                    for i, flight in enumerate(flights):
+                        if i < len(flight_analyses):
+                            analysis = flight_analyses[i]
+                            flight['risk_analysis'].update({
+                                'overall_risk_score': analysis['risk_score'],
+                                'risk_level': analysis['risk_level'],
+                                'risk_color': analysis['risk_color'],
+                                'advanced_recommendation': analysis.get('recommendation', ''),
+                                'confidence': analysis.get('confidence', 0.7),
+                                'real_time_data': True
+                            })
+                            
+                            # Add real-time weather and flight data
+                            if 'real_time_data' in analysis:
+                                flight['real_time_data'] = analysis['real_time_data']
+                    
+                    # Add comprehensive analysis to the first flight for access
+                    if flights:
+                        flights[0]['comprehensive_analysis'] = comprehensive_analysis
+                        flights[0]['using_enhanced_prediction'] = True
+            else:
+                # Use standard advanced risk predictor
+                comprehensive_analysis = advanced_risk_predictor.predict_comprehensive_risk(flights)
+                
+                # Update flights with advanced risk scores if available
+                if comprehensive_analysis.get('flight_analyses'):
+                    flight_analyses = comprehensive_analysis['flight_analyses']
+                    for i, flight in enumerate(flights):
+                        if i < len(flight_analyses):
+                            analysis = flight_analyses[i]
+                            flight['risk_analysis'].update({
+                                'overall_risk_score': analysis['risk_score'],
+                                'risk_level': analysis['risk_level'],
+                                'risk_color': analysis['risk_color'],
+                                'advanced_recommendation': analysis.get('recommendation', ''),
+                                'confidence': analysis.get('confidence', 0.7),
+                                'real_time_data': False
+                            })
+                    
+                    # Add comprehensive analysis to the first flight for access
+                    if flights:
+                        flights[0]['comprehensive_analysis'] = comprehensive_analysis
+                        flights[0]['using_enhanced_prediction'] = False
             
             # Sort by price and risk score
             flights.sort(key=lambda x: (x['price'], x['risk_analysis']['overall_risk_score']))

@@ -15,7 +15,7 @@ echo "📦 Activating virtual environment..."
 source venv/bin/activate
 
 # Start the Flask backend
-echo "🖥️  Starting backend server on port 8080..."
+echo "🖥️  Starting backend server on port 8081..."
 python app.py &
 
 # Wait a moment for server to start
@@ -23,13 +23,13 @@ sleep 3
 
 # Open welcome page in default browser
 echo "🌐 Opening welcome page in browser..."
-open "file:///Users/akankshatrehun/Desktop/akasa/frontend/welcome.html"
+open "http://localhost:8081/frontend/welcome.html"
 
 echo ""
 echo "✅ Application started successfully!"
 echo ""
 echo "📋 What you can do now:"
-echo "   • Backend running on: http://localhost:8080"
+echo "   • Backend running on: http://localhost:8081"
 echo "   • Frontend opened in your browser"
 echo "   • Test flight search with different routes and budgets"
 echo "   • Click 'Predict Risk Score' to see detailed analysis"

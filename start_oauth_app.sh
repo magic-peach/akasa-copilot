@@ -19,7 +19,7 @@ echo "📥 Installing OAuth dependencies..."
 pip install google-auth==2.23.4 google-auth-oauthlib==1.1.0 google-auth-httplib2==0.1.1
 
 # Start the OAuth Flask app
-echo "🖥️  Starting OAuth server on port 5000..."
+echo "🔐 Starting OAuth server on port 5000..."
 python oauth_app.py &
 
 # Wait a moment for server to start

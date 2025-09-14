@@ -6,6 +6,10 @@
     <title>Sign Up - Akasa Copilot</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        // Redirect to OAuth app on localhost:5000
+        window.location.href = 'http://localhost:5000/login';
+    </script>
+    <script>
         tailwind.config = {
             theme: {
                 extend: {
@@ -89,51 +93,24 @@
         .floating {
             animation: float 3s ease-in-out infinite;
         }
-        .form-input {
-            background: rgba(26, 26, 26, 0.8);
-            border: 2px solid #333333;
-            border-radius: 12px;
-            padding: 16px;
+        .btn-google {
+            background: #4285f4;
             color: white;
-            width: 100%;
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
             transition: all 0.3s ease;
-            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
         }
-        .form-input:focus {
-            border-color: #6C63FF;
-            outline: none;
-            box-shadow: 0 0 20px rgba(108, 99, 255, 0.3);
+        .btn-google:hover {
+            background: #3367d6;
+            box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
         }
-        .form-input.error {
-            border-color: #ef4444;
-            box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
-        }
-        .form-input.success {
-            border-color: #10b981;
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
-        }
-        .error-message {
-            color: #ef4444;
-            font-size: 14px;
-            margin-top: 8px;
-        }
-        .success-message {
-            color: #10b981;
-            font-size: 14px;
-            margin-top: 8px;
-        }
-        .password-strength {
-            margin-top: 8px;
-        }
-        .strength-bar {
-            height: 4px;
-            border-radius: 2px;
-            transition: all 0.3s ease;
-        }
-        .strength-weak { background: #ef4444; width: 25%; }
-        .strength-fair { background: #f59e0b; width: 50%; }
-        .strength-good { background: #3b82f6; width: 75%; }
-        .strength-strong { background: #10b981; width: 100%; }
     </style>
 </head>
 <body class="text-white">
@@ -175,75 +152,17 @@
                             </p>
                         </div>
                         
-                        <form id="signupForm" class="space-y-6">
-                            <!-- Email Field -->
-                            <div>
-                                <label class="block text-sm font-medium mb-2 text-left">Email Address</label>
-                                <input 
-                                    type="email" 
-                                    id="email" 
-                                    class="form-input" 
-                                    placeholder="your.email@example.com"
-                                    required
-                                >
-                                <div id="emailError" class="error-message hidden"></div>
-                            </div>
-
-                            <!-- Password Field -->
-                            <div>
-                                <label class="block text-sm font-medium mb-2 text-left">Password</label>
-                                <input 
-                                    type="password" 
-                                    id="password" 
-                                    class="form-input" 
-                                    placeholder="Create a strong password"
-                                    required
-                                >
-                                <div class="password-strength">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <span class="text-sm text-gray-400">Password Strength:</span>
-                                        <span id="strengthText" class="text-sm font-medium">-</span>
-                                    </div>
-                                    <div class="w-full bg-gray-700 rounded-full h-1">
-                                        <div id="strengthBar" class="strength-bar"></div>
-                                    </div>
-                                </div>
-                                <div id="passwordError" class="error-message hidden"></div>
-                            </div>
-
-                            <!-- Confirm Password Field -->
-                            <div>
-                                <label class="block text-sm font-medium mb-2 text-left">Confirm Password</label>
-                                <input 
-                                    type="password" 
-                                    id="confirmPassword" 
-                                    class="form-input" 
-                                    placeholder="Confirm your password"
-                                    required
-                                >
-                                <div id="confirmPasswordError" class="error-message hidden"></div>
-                                <div id="confirmPasswordSuccess" class="success-message hidden">Passwords match!</div>
-                            </div>
-
-                            <!-- Submit Button -->
-                            <button 
-                                type="submit" 
-                                id="submitBtn"
-                                class="btn-primary w-full text-xl py-4 disabled:opacity-50"
-                                disabled
-                            >
-                                ✈️ Let's go on a flight!
-                            </button>
-                        </form>
-
-                        <!-- Sign In Link -->
-                        <div class="text-center mt-6">
-                            <p class="text-gray-400">
-                                Already have an account? 
-                                <button onclick="goToSignIn()" class="text-purple-400 hover:text-purple-300 font-medium">
-                                    Sign in here
-                                </button>
-                            </p>
+                        <!-- Google OAuth Sign Up -->
+                        <div class="mb-6">
+                            <a href="http://localhost:5000/login" class="btn-google w-full justify-center mb-4">
+                                <svg class="h-5 w-5" viewBox="0 0 24 24">
+                                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                </svg>
+                                Sign up with Google
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -261,173 +180,6 @@
     </div>
 
     <script>
-        // Form validation and password strength
-        const emailInput = document.getElementById('email');
-        const passwordInput = document.getElementById('password');
-        const confirmPasswordInput = document.getElementById('confirmPassword');
-        const submitBtn = document.getElementById('submitBtn');
-        const strengthBar = document.getElementById('strengthBar');
-        const strengthText = document.getElementById('strengthText');
-
-        // Email validation
-        function validateEmail(email) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return emailRegex.test(email);
-        }
-
-        // Password strength calculation
-        function calculatePasswordStrength(password) {
-            let score = 0;
-            let feedback = [];
-
-            if (password.length >= 8) score += 1;
-            else feedback.push('At least 8 characters');
-
-            if (/[a-z]/.test(password)) score += 1;
-            else feedback.push('Lowercase letter');
-
-            if (/[A-Z]/.test(password)) score += 1;
-            else feedback.push('Uppercase letter');
-
-            if (/[0-9]/.test(password)) score += 1;
-            else feedback.push('Number');
-
-            if (/[^A-Za-z0-9]/.test(password)) score += 1;
-            else feedback.push('Special character');
-
-            return { score, feedback };
-        }
-
-        // Update password strength indicator
-        function updatePasswordStrength() {
-            const password = passwordInput.value;
-            const { score, feedback } = calculatePasswordStrength(password);
-
-            strengthBar.className = 'strength-bar';
-            
-            if (password.length === 0) {
-                strengthText.textContent = '-';
-                strengthBar.style.width = '0%';
-            } else if (score <= 2) {
-                strengthText.textContent = 'Weak';
-                strengthText.className = 'text-sm font-medium text-red-400';
-                strengthBar.classList.add('strength-weak');
-            } else if (score === 3) {
-                strengthText.textContent = 'Fair';
-                strengthText.className = 'text-sm font-medium text-yellow-400';
-                strengthBar.classList.add('strength-fair');
-            } else if (score === 4) {
-                strengthText.textContent = 'Good';
-                strengthText.className = 'text-sm font-medium text-blue-400';
-                strengthBar.classList.add('strength-good');
-            } else {
-                strengthText.textContent = 'Strong';
-                strengthText.className = 'text-sm font-medium text-green-400';
-                strengthBar.classList.add('strength-strong');
-            }
-
-            return score >= 3; // Minimum "Fair" strength required
-        }
-
-        // Show/hide error messages
-        function showError(fieldId, message) {
-            const errorDiv = document.getElementById(fieldId + 'Error');
-            const field = document.getElementById(fieldId);
-            
-            errorDiv.textContent = message;
-            errorDiv.classList.remove('hidden');
-            field.classList.add('error');
-            field.classList.remove('success');
-        }
-
-        function hideError(fieldId) {
-            const errorDiv = document.getElementById(fieldId + 'Error');
-            const field = document.getElementById(fieldId);
-            
-            errorDiv.classList.add('hidden');
-            field.classList.remove('error');
-        }
-
-        function showSuccess(fieldId) {
-            const field = document.getElementById(fieldId);
-            field.classList.add('success');
-            field.classList.remove('error');
-        }
-
-        // Validate form and enable/disable submit button
-        function validateForm() {
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
-            const confirmPassword = confirmPasswordInput.value;
-
-            let isValid = true;
-
-            // Email validation
-            if (!email) {
-                showError('email', 'Email is required');
-                isValid = false;
-            } else if (!validateEmail(email)) {
-                showError('email', 'Please enter a valid email address');
-                isValid = false;
-            } else {
-                hideError('email');
-                showSuccess('email');
-            }
-
-            // Password validation
-            if (!password) {
-                showError('password', 'Password is required');
-                isValid = false;
-            } else if (!updatePasswordStrength()) {
-                showError('password', 'Password is too weak');
-                isValid = false;
-            } else {
-                hideError('password');
-                showSuccess('password');
-            }
-
-            // Confirm password validation
-            if (!confirmPassword) {
-                showError('confirmPassword', 'Please confirm your password');
-                document.getElementById('confirmPasswordSuccess').classList.add('hidden');
-                isValid = false;
-            } else if (password !== confirmPassword) {
-                showError('confirmPassword', 'Passwords do not match');
-                document.getElementById('confirmPasswordSuccess').classList.add('hidden');
-                isValid = false;
-            } else {
-                hideError('confirmPassword');
-                showSuccess('confirmPassword');
-                document.getElementById('confirmPasswordSuccess').classList.remove('hidden');
-            }
-
-            // Enable/disable submit button
-            submitBtn.disabled = !isValid;
-            return isValid;
-        }
-
-        // Event listeners
-        emailInput.addEventListener('input', validateForm);
-        passwordInput.addEventListener('input', validateForm);
-        confirmPasswordInput.addEventListener('input', validateForm);
-
-        // Form submission
-        document.getElementById('signupForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            if (validateForm()) {
-                // Show loading state
-                submitBtn.innerHTML = '✈️ Preparing for takeoff...';
-                submitBtn.disabled = true;
-                
-                // Simulate registration process
-                setTimeout(() => {
-                    // Redirect to dashboard
-                    window.location.href = 'index.html';
-                }, 2000);
-            }
-        });
-
         // Navigation functions
         function goBack() {
             window.location.href = 'welcome.html';

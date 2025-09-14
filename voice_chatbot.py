@@ -31,6 +31,9 @@ class VoiceChatbot:
             'preferences': ['prefer', 'like', 'seat', 'meal', 'notification'],
             'alert_subscription': ['subscribe', 'notify', 'alert', 'updates', 'notifications'],
             'booking_info': ['booking', 'reservation', 'ticket', 'confirmation'],
+            'calendar_analysis': ['calendar', 'events', 'schedule', 'meetings', 'appointments', 'analyze calendar'],
+            'flight_suggestions': ['suggest flights', 'recommend flights', 'best dates', 'travel suggestions'],
+            'cancellation_cost': ['cancellation cost', 'cancel flight', 'refund', 'penalty'],
             'general_help': ['help', 'assistance', 'support', 'what can you do']
         }
     
@@ -251,6 +254,22 @@ class VoiceChatbot:
                 else:
                     return {'error': 'Please provide your booking ID'}
             
+            elif intent == 'calendar_analysis':
+                # Analyze calendar events for travel planning
+                return self._analyze_calendar_events(user_id)
+            
+            elif intent == 'flight_suggestions':
+                # Suggest flights based on calendar events
+                return self._suggest_flights_from_calendar(user_text, user_id)
+            
+            elif intent == 'cancellation_cost':
+                # Calculate cancellation costs
+                booking_id = self._extract_booking_id(user_text, chat_history, user_id)
+                if booking_id:
+                    return self._calculate_cancellation_cost(booking_id, user_text)
+                else:
+                    return {'error': 'Please provide your booking ID for cancellation cost calculation'}
+            
             else:  # general_help
                 return self._generate_help_response(chat_history)
                 
@@ -387,6 +406,73 @@ class VoiceChatbot:
                     'data': booking_data
                 }
             
+            elif intent == 'calendar_analysis':
+                calendar_data = agent_response
+                travel_events = calendar_data.get('travel_events', 0)
+                
+                if travel_events > 0:
+                    response_text = f"I found {travel_events} travel-related events in your calendar. "
+                    response_text += "I can suggest optimal flight dates based on your schedule."
+                else:
+                    response_text = "I analyzed your calendar but didn't find any travel-related events. "
+                    response_text += "Would you like me to help you plan upcoming trips?"
+                
+                return {
+                    'text': response_text,
+                    'data': calendar_data,
+                    'suggestions': [
+                        "Suggest flights for my events",
+                        "Show travel recommendations",
+                        "Add travel event to calendar"
+                    ]
+                }
+            
+            elif intent == 'flight_suggestions':
+                suggestion_data = agent_response
+                suggestions = suggestion_data.get('flight_suggestions', [])
+                origin = suggestion_data.get('origin', 'your location')
+                
+                if suggestions:
+                    response_text = f"Based on your calendar, I recommend flights from {origin}. "
+                    response_text += f"I found {len(suggestions)} optimal travel windows for your events."
+                else:
+                    response_text = "I couldn't find specific flight suggestions based on your calendar. "
+                    response_text += "Would you like me to search for flights to specific destinations?"
+                
+                return {
+                    'text': response_text,
+                    'data': suggestion_data,
+                    'suggestions': [
+                        "Search flights to Mumbai",
+                        "Search flights to Bangalore",
+                        "Check calendar conflicts"
+                    ]
+                }
+            
+            elif intent == 'cancellation_cost':
+                cost_data = agent_response
+                costs = cost_data.get('cancellation_costs', {})
+                
+                if costs:
+                    cost_now = costs.get('now', {})
+                    cost_later = costs.get('week_later', {})
+                    
+                    response_text = f"Here are your cancellation costs: "
+                    response_text += f"If you cancel now, the fee is ₹{cost_now.get('fee', 0)} with a refund of ₹{cost_now.get('refund', 0)}. "
+                    response_text += f"If you cancel a week later, the fee increases to ₹{cost_later.get('fee', 0)} with a refund of ₹{cost_later.get('refund', 0)}."
+                else:
+                    response_text = "I couldn't calculate the cancellation costs. Please check your booking details."
+                
+                return {
+                    'text': response_text,
+                    'data': cost_data,
+                    'suggestions': [
+                        "Check booking details",
+                        "Change booking instead",
+                        "Contact support"
+                    ]
+                }
+            
             else:  # general_help
                 help_response = agent_response
                 response_text = "I'm your Akasa Airlines assistant. I can help you with flight status, booking changes, preferences, and alerts. What would you like to do?"
@@ -396,9 +482,9 @@ class VoiceChatbot:
                     'data': help_response,
                     'suggestions': [
                         "Check flight status",
-                        "Change my booking",
-                        "Update my preferences",
-                        "Subscribe to alerts"
+                        "Analyze my calendar",
+                        "Suggest flights",
+                        "Calculate cancellation cost"
                     ]
                 }
                 
@@ -587,6 +673,149 @@ class VoiceChatbot:
         except Exception as e:
             logger.error(f"Error saving conversation: {str(e)}")
             return str(uuid.uuid4())
+    
+    def _analyze_calendar_events(self, user_id: str) -> Dict[str, Any]:
+        """Analyze calendar events for travel planning"""
+        try:
+            # Import calendar analysis service
+            from calendar_analysis_service import CalendarAnalysisService
+            
+            calendar_service = CalendarAnalysisService()
+            
+            # Get calendar events (mock implementation)
+            events = [
+                {
+                    'summary': 'Business Meeting in Mumbai',
+                    'start': {'dateTime': '2024-01-15T10:00:00Z'},
+                    'end': {'dateTime': '2024-01-15T12:00:00Z'},
+                    'location': 'Mumbai, India'
+                },
+                {
+                    'summary': 'Conference in Bangalore',
+                    'start': {'dateTime': '2024-01-20T09:00:00Z'},
+                    'end': {'dateTime': '2024-01-22T17:00:00Z'},
+                    'location': 'Bangalore, India'
+                }
+            ]
+            
+            analysis = calendar_service.analyze_events_for_travel(events)
+            
+            return {
+                'success': True,
+                'calendar_analysis': analysis,
+                'travel_events': len([e for e in analysis if e.is_travel_related]),
+                'suggestions': calendar_service.generate_travel_suggestions(analysis)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error analyzing calendar: {str(e)}")
+            return {'error': f'Could not analyze calendar: {str(e)}'}
+    
+    def _suggest_flights_from_calendar(self, user_text: str, user_id: str) -> Dict[str, Any]:
+        """Suggest flights based on calendar events"""
+        try:
+            # Get calendar analysis first
+            calendar_analysis = self._analyze_calendar_events(user_id)
+            
+            if 'error' in calendar_analysis:
+                return calendar_analysis
+            
+            # Extract travel preferences from user text
+            origin = 'DEL'  # Default origin
+            budget = 10000  # Default budget
+            
+            # Simple text parsing for origin and budget
+            if 'from' in user_text.lower():
+                words = user_text.lower().split()
+                try:
+                    from_idx = words.index('from')
+                    if from_idx + 1 < len(words):
+                        origin_city = words[from_idx + 1]
+                        # Map city names to codes
+                        city_codes = {
+                            'delhi': 'DEL', 'mumbai': 'BOM', 'bangalore': 'BLR',
+                            'hyderabad': 'HYD', 'chennai': 'MAA', 'kolkata': 'CCU'
+                        }
+                        origin = city_codes.get(origin_city, 'DEL')
+                except ValueError:
+                    pass
+            
+            if 'budget' in user_text.lower() or 'under' in user_text.lower():
+                import re
+                numbers = re.findall(r'\d+', user_text)
+                if numbers:
+                    budget = int(numbers[0])
+            
+            suggestions = calendar_analysis.get('suggestions', [])
+            
+            return {
+                'success': True,
+                'flight_suggestions': suggestions,
+                'origin': origin,
+                'budget': budget,
+                'calendar_events': calendar_analysis.get('travel_events', 0)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error suggesting flights: {str(e)}")
+            return {'error': f'Could not generate flight suggestions: {str(e)}'}
+    
+    def _calculate_cancellation_cost(self, booking_id: str, user_text: str) -> Dict[str, Any]:
+        """Calculate cancellation costs for a booking"""
+        try:
+            # Import cancellation cost service
+            from cancellation_cost_service import CancellationCostService
+            
+            cost_service = CancellationCostService()
+            
+            # Get booking data
+            booking_data = self._get_booking_data(booking_id)
+            if not booking_data:
+                return {'error': 'Booking not found'}
+            
+            # Extract timing from user text (now vs later)
+            timing = 'now'
+            if 'week later' in user_text.lower() or 'later' in user_text.lower():
+                timing = 'week_later'
+            
+            # Calculate costs for both scenarios
+            cost_now = cost_service.predict_cancellation_cost(
+                booking_data.get('airline', 'AI'),
+                booking_data.get('fare_class', 'Economy'),
+                booking_data.get('booking_date', datetime.now().isoformat()),
+                booking_data.get('departure_date', (datetime.now() + timedelta(days=7)).isoformat()),
+                0  # Cancel now
+            )
+            
+            cost_later = cost_service.predict_cancellation_cost(
+                booking_data.get('airline', 'AI'),
+                booking_data.get('fare_class', 'Economy'),
+                booking_data.get('booking_date', datetime.now().isoformat()),
+                booking_data.get('departure_date', (datetime.now() + timedelta(days=7)).isoformat()),
+                7  # Cancel in 7 days
+            )
+            
+            return {
+                'success': True,
+                'booking_id': booking_id,
+                'cancellation_costs': {
+                    'now': {
+                        'fee': cost_now.cancellation_fee,
+                        'refund': cost_now.refund_amount,
+                        'total_loss': cost_now.total_loss
+                    },
+                    'week_later': {
+                        'fee': cost_later.cancellation_fee,
+                        'refund': cost_later.refund_amount,
+                        'total_loss': cost_later.total_loss
+                    }
+                },
+                'recommendation': cost_now.recommendation
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating cancellation cost: {str(e)}")
+            return {'error': f'Could not calculate cancellation cost: {str(e)}'}
     
     def _create_error_response(self, error_message: str) -> Dict[str, Any]:
         """Create standardized error response"""

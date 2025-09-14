@@ -261,29 +261,6 @@ class AdvancedRiskPredictor:
         
         # Calculate destination risk
         dest_risk = (
-    
-    def _calculate_simple_correlation(self, x_values: List[float], y_values: List[float]) -> float:
-        """Calculate simple correlation coefficient without numpy"""
-        if len(x_values) < 2 or len(y_values) < 2:
-            return 0.0
-        
-        try:
-            n = len(x_values)
-            sum_x = sum(x_values)
-            sum_y = sum(y_values)
-            sum_xy = sum(x_values[i] * y_values[i] for i in range(n))
-            sum_x2 = sum(x * x for x in x_values)
-            sum_y2 = sum(y * y for y in y_values)
-            
-            numerator = n * sum_xy - sum_x * sum_y
-            denominator = ((n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y)) ** 0.5
-            
-            if denominator == 0:
-                return 0.0
-            
-            return round(numerator / denominator, 3)
-        except:
-            return 0.0
             dest_profile['congestion'] * 25 +
             dest_profile['weather_risk'] * 15 +
             (1 - dest_profile['infrastructure']) * 20 +
@@ -294,6 +271,25 @@ class AdvancedRiskPredictor:
         total_risk = (origin_risk * 0.6 + dest_risk * 0.4)
         
         return min(total_risk, 85)
+
+    def _calculate_simple_correlation(self, x_values: List[float], y_values: List[float]) -> float:
+        """Calculate simple correlation coefficient without numpy"""
+        if len(x_values) < 2 or len(y_values) < 2:
+            return 0.0
+        try:
+            n = len(x_values)
+            sum_x = sum(x_values)
+            sum_y = sum(y_values)
+            sum_xy = sum(x_values[i] * y_values[i] for i in range(n))
+            sum_x2 = sum(x * x for x in x_values)
+            sum_y2 = sum(y * y for y in y_values)
+            numerator = n * sum_xy - sum_x * sum_y
+            denominator = ((n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y)) ** 0.5
+            if denominator == 0:
+                return 0.0
+            return round(numerator / denominator, 3)
+        except Exception:
+            return 0.0
     
     def _calculate_advanced_seasonal_risk(self, flight: Dict[str, Any]) -> float:
         """Advanced seasonal risk calculation"""

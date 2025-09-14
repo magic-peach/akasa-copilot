@@ -109,7 +109,7 @@
                         </h1>
                     </div>
                     <div class="flex items-center space-x-4">
-                        <button class="text-gray-300 hover:text-white transition-colors" onclick="goToSignIn()">Already have an account?</button>
+                        <!-- No additional header buttons needed -->
                     </div>
                 </div>
             </div>
@@ -140,15 +140,9 @@
 
                     <!-- CTA Buttons -->
                     <div class="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16">
-                        <button class="btn-primary text-xl py-4 px-8" onclick="goToApp()">
-                            ✈️ Start Flight Search
-                        </button>
-                        <button class="btn-secondary text-xl py-4 px-8" onclick="goToSignUp()">
-                            Sign Up
-                        </button>
-                        <button class="btn-secondary text-xl py-4 px-8" onclick="goToSignIn()">
-                            Log In
-                        </button>
+                        <a href="http://localhost:5000/login" class="btn-primary text-xl py-4 px-8 text-center">
+                            ✈️ Sign in with Google
+                        </a>
                     </div>
 
                     <!-- Feature Highlights -->
@@ -204,18 +198,7 @@
     </div>
 
     <script>
-        // Navigation functions
-        function goToApp() {
-            window.location.href = 'index.html';
-        }
-
-        function goToSignUp() {
-            window.location.href = 'signup.html';
-        }
-
-        function goToSignIn() {
-            window.location.href = 'signin.html';
-        }
+        // No navigation functions needed as we're using direct links
     </script>
 </body>
 </html>

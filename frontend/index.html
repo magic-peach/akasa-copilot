@@ -415,7 +415,7 @@
     </section>
 
     <script>
-        const API_BASE = 'http://localhost:8080';
+        const API_BASE = 'http://localhost:8081';
         let currentFlights = [];
         let isListening = false;
 
@@ -1215,12 +1215,182 @@
             }
         }
 
-        // Regular voice assistant
+        // Enhanced voice assistant with speech recognition
         function activateVoice() {
-            const message = prompt('Ask me anything about your flight:');
-            if (message) {
-                document.getElementById('chatInput').value = message;
-                sendMessage();
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const recognition = new SpeechRecognition();
+                
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'en-IN';
+                recognition.maxAlternatives = 3;
+                
+                const voiceButton = document.getElementById('voiceButton');
+                voiceButton.classList.add('listening');
+                voiceButton.innerHTML = `
+                    <svg class="h-6 w-6 animate-pulse text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                    </svg>
+                `;
+                
+                let finalTranscript = '';
+                
+                recognition.onresult = function(event) {
+                    let interimTranscript = '';
+                    
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript;
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+                    
+                    if (interimTranscript) {
+                        showNotification(`Listening: "${interimTranscript}"`, 'info');
+                    }
+                    
+                    if (finalTranscript) {
+                        console.log('Voice input:', finalTranscript);
+                        processVoiceCommand(finalTranscript);
+                        finalTranscript = '';
+                    }
+                };
+                
+                recognition.onerror = function(event) {
+                    console.error('Speech recognition error:', event.error);
+                    let errorMessage = 'Voice recognition failed';
+                    
+                    switch(event.error) {
+                        case 'no-speech':
+                            errorMessage = 'No speech detected. Please try again.';
+                            break;
+                        case 'audio-capture':
+                            errorMessage = 'Microphone not accessible. Please check permissions.';
+                            break;
+                        case 'not-allowed':
+                            errorMessage = 'Microphone permission denied. Please allow microphone access.';
+                            break;
+                        default:
+                            errorMessage = `Voice recognition error: ${event.error}`;
+                    }
+                    
+                    showNotification(errorMessage, 'error');
+                };
+                
+                recognition.onstart = function() {
+                    showNotification('🎤 Listening... Say something like "Analyze my calendar" or "Suggest flights"', 'info');
+                };
+                
+                recognition.onend = function() {
+                    voiceButton.classList.remove('listening');
+                    voiceButton.innerHTML = `
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                        </svg>
+                    `;
+                };
+                
+                try {
+                    recognition.start();
+                } catch (error) {
+                    console.error('Failed to start recognition:', error);
+                    showNotification('Failed to start voice recognition', 'error');
+                }
+            } else {
+                // Fallback to text input
+                const message = prompt('Ask me anything about your flight:');
+                if (message) {
+                    processVoiceCommand(message);
+                }
+            }
+        }
+        
+        // Process voice commands through the backend
+        async function processVoiceCommand(message) {
+            try {
+                showNotification('Processing your request...', 'info');
+                
+                const response = await fetch(`${API_BASE}/chat/voice`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_id: 'DEMO_USER',
+                        text_input: message
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show chat container
+                    document.getElementById('chatContainer').classList.remove('hidden');
+                    
+                    // Add user message
+                    addChatMessage('You', message, 'user');
+                    
+                    // Add assistant response
+                    const assistantResponse = data.response.text;
+                    addChatMessage('AI Assistant', assistantResponse, 'assistant');
+                    
+                    // Show success notification
+                    showNotification('Voice command processed successfully!', 'success');
+                    
+                    // Handle specific response data
+                    if (data.response.data) {
+                        console.log('Response data:', data.response.data);
+                        
+                        // Handle calendar analysis results
+                        if (data.intent === 'calendar_analysis') {
+                            displayCalendarAnalysis(data.response.data);
+                        }
+                        
+                        // Handle flight suggestions
+                        if (data.intent === 'flight_suggestions') {
+                            displayFlightSuggestions(data.response.data);
+                        }
+                        
+                        // Handle cancellation costs
+                        if (data.intent === 'cancellation_cost') {
+                            displayCancellationCosts(data.response.data);
+                        }
+                    }
+                } else {
+                    showNotification(data.error || 'Failed to process voice command', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Voice command error:', error);
+                showNotification('Failed to process voice command', 'error');
+            }
+        }
+        
+        // Display calendar analysis results
+        function displayCalendarAnalysis(data) {
+            if (data.travel_events > 0) {
+                showNotification(`Found ${data.travel_events} travel events in your calendar`, 'success');
+            }
+        }
+        
+        // Display flight suggestions
+        function displayFlightSuggestions(data) {
+            const suggestions = data.flight_suggestions || [];
+            if (suggestions.length > 0) {
+                showNotification(`Generated ${suggestions.length} flight recommendations`, 'success');
+            }
+        }
+        
+        // Display cancellation costs
+        function displayCancellationCosts(data) {
+            const costs = data.cancellation_costs;
+            if (costs) {
+                const costNow = costs.now?.fee || 0;
+                const costLater = costs.week_later?.fee || 0;
+                showNotification(`Cancellation: Now ₹${costNow}, Later ₹${costLater}`, 'info');
             }
         }
 
