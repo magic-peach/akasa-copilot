@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 import logging
 from advanced_risk_predictor import advanced_risk_predictor
-from enhanced_risk_predictor import enhanced_risk_predictor
 from weather_api_service import weather_api_service
 from aviation_api_service import aviation_api_service
 
@@ -130,7 +129,7 @@ class FlightSearchService:
             if use_enhanced_prediction:
                 # Use enhanced risk predictor with real-time data
                 logger.info(f"Using enhanced risk prediction with real-time data for {len(flights)} flights")
-                comprehensive_analysis = enhanced_risk_predictor.predict_comprehensive_risk(flights)
+                comprehensive_analysis = advanced_risk_predictor.predict_comprehensive_risk(flights)
                 
                 # Update flights with enhanced risk scores
                 if 'flight_analyses' in comprehensive_analysis:

@@ -1,0 +1,2399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akasa Copilot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            500: '#6C63FF',
+                            600: '#5a52e6',
+                        },
+                        dark: {
+                            700: '#333333',
+                            800: '#1a1a1a',
+                            900: '#121212',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background: #121212; }
+        .card-glow {
+            background: #1a1a1a;
+            border: 1px solid #333333;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+        .card-glow:hover {
+            border-color: #6C63FF;
+            box-shadow: 0 0 20px rgba(108, 99, 255, 0.5);
+        }
+        .btn-primary {
+            background: #6C63FF;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background: #5a52e6;
+            box-shadow: 0 0 20px rgba(108, 99, 255, 0.5);
+        }
+        .btn-secondary {
+            background: #333333;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-secondary:hover {
+            background: #444444;
+        }
+        .input-field {
+            background: #1a1a1a;
+            border: 1px solid #333333;
+            border-radius: 8px;
+            padding: 12px;
+            color: white;
+            width: 100%;
+        }
+        .input-field:focus {
+            border-color: #6C63FF;
+            outline: none;
+        }
+        .input-field[type="date"] {
+            color-scheme: dark;
+        }
+        .input-field[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1) brightness(2); /* Make calendar icon white */
+            cursor: pointer;
+        }
+        .risk-badge-low {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .risk-badge-medium {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .risk-badge-high {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        /* Voice button removed as requested */
+        @keyframes pulse {
+            0% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.8); }
+            100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+        }
+        .modal-content {
+            background-color: #1a1a1a;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #333333;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: white;
+        }
+        .flight-card {
+            transition: all 0.3s ease;
+        }
+        .flight-card:hover {
+            transform: translateY(-2px);
+        }
+        .price-range-badge {
+            background: rgba(108, 99, 255, 0.2);
+            color: #6C63FF;
+            border: 1px solid rgba(108, 99, 255, 0.3);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        
+        /* Speaking indicator */
+        .speaking {
+            position: relative;
+        }
+        
+        .speaking::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 4px;
+            background: linear-gradient(90deg, #6C63FF, transparent, #6C63FF);
+            border-radius: 2px;
+            animation: speaking-pulse 1.5s infinite;
+        }
+        
+        @keyframes speaking-pulse {
+            0% { opacity: 0.3; width: 20px; }
+            50% { opacity: 1; width: 40px; }
+            100% { opacity: 0.3; width: 20px; }
+        }
+    </style>
+</head>
+<body class="text-white min-h-screen">
+    <!-- Header -->
+    <header class="border-b border-gray-700 bg-gray-800/50 backdrop-blur-sm">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <svg class="h-8 w-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                    </svg>
+                    <h1 class="text-2xl font-bold bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text text-transparent">
+                        Akasa Copilot
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg" onclick="showPNRTracker()">Track PNR</button>
+                    <div class="flex items-center space-x-2">
+                        <img src="https://ui-avatars.com/api/?name=User&background=6C63FF&color=fff" alt="User" class="w-8 h-8 rounded-full">
+                        <span class="text-sm text-gray-300">Welcome, User</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="container mx-auto px-6 py-12">
+        <div class="text-center mb-12">
+            <h2 class="text-5xl font-bold mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                Where are you flying to?
+            </h2>
+            <p class="text-xl text-gray-400 mb-8">
+                AI-powered flight search with real-time risk assessment
+            </p>
+        </div>
+
+        <!-- Flight Search -->
+        <div class="max-w-4xl mx-auto">
+            <div class="card-glow p-8 mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">From</label>
+                        <select class="input-field" id="origin">
+                            <option value="DEL">Delhi (DEL)</option>
+                            <option value="BOM">Mumbai (BOM)</option>
+                            <option value="BLR">Bangalore (BLR)</option>
+                            <option value="HYD">Hyderabad (HYD)</option>
+                            <option value="MAA">Chennai (MAA)</option>
+                            <option value="CCU">Kolkata (CCU)</option>
+                            <option value="GOA">Goa (GOA)</option>
+                            <option value="AMD">Ahmedabad (AMD)</option>
+                            <option value="PNQ">Pune (PNQ)</option>
+                            <option value="JAI">Jaipur (JAI)</option>
+                            <option value="LKO">Lucknow (LKO)</option>
+                            <option value="IXC">Chandigarh (IXC)</option>
+                            <option value="VNS">Varanasi (VNS)</option>
+                            <option value="IXB">Siliguri (IXB)</option>
+                            <option value="RPR">Raipur (RPR)</option>
+                            <option value="BHO">Bhopal (BHO)</option>
+                            <option value="IDR">Indore (IDR)</option>
+                            <option value="IXU">Aurangabad (IXU)</option>
+                            <option value="IXD">Allahabad (IXD)</option>
+                            <option value="IXJ">Jammu (IXJ)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">To</label>
+                        <select class="input-field" id="destination">
+                            <option value="BOM">Mumbai (BOM)</option>
+                            <option value="DEL">Delhi (DEL)</option>
+                            <option value="BLR">Bangalore (BLR)</option>
+                            <option value="HYD">Hyderabad (HYD)</option>
+                            <option value="MAA">Chennai (MAA)</option>
+                            <option value="CCU">Kolkata (CCU)</option>
+                            <option value="GOA">Goa (GOA)</option>
+                            <option value="AMD">Ahmedabad (AMD)</option>
+                            <option value="PNQ">Pune (PNQ)</option>
+                            <option value="JAI">Jaipur (JAI)</option>
+                            <option value="LKO">Lucknow (LKO)</option>
+                            <option value="IXC">Chandigarh (IXC)</option>
+                            <option value="VNS">Varanasi (VNS)</option>
+                            <option value="IXB">Siliguri (IXB)</option>
+                            <option value="RPR">Raipur (RPR)</option>
+                            <option value="BHO">Bhopal (BHO)</option>
+                            <option value="IDR">Indore (IDR)</option>
+                            <option value="IXU">Aurangabad (IXU)</option>
+                            <option value="IXD">Allahabad (IXD)</option>
+                            <option value="IXJ">Jammu (IXJ)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Date</label>
+                        <input type="date" class="input-field" id="date">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Budget</label>
+                        <input type="number" placeholder="10000" class="input-field" id="budget" value="10000">
+                    </div>
+                </div>
+                <div class="flex flex-col space-y-2">
+                    <div class="flex space-x-4">
+                        <button class="btn-primary flex-1" onclick="searchFlights()">
+                            <span id="searchButtonText">Search Flights</span>
+                            <span id="searchSpinner" class="hidden ml-2">
+                                <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </span>
+                        </button>
+                        <button class="btn-secondary" onclick="activateVoiceSearch()">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="voiceRecognitionDisplay" class="hidden text-sm text-gray-400 italic">
+                        Recognized: <span id="voiceRecognitionText"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comprehensive Analysis Button -->
+            <div id="comprehensiveAnalysisSection" class="hidden card-glow p-6 mt-4">
+                <div class="text-center">
+                    <h3 class="text-lg font-semibold mb-3">Get AI-Powered Route Analysis</h3>
+                    <p class="text-gray-400 text-sm mb-4">Compare all flights and get intelligent recommendations</p>
+                    <button class="btn-primary" onclick="showComprehensiveAnalysis()">
+                        📊 Analyze All Flights
+                    </button>
+                </div>
+            </div>
+
+            <!-- Flight Results -->
+            <div id="flightResults" class="hidden">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-2xl font-bold">Available Flights</h3>
+                    <div class="text-sm text-gray-400">
+                        <span id="flightCount">0</span> flights found
+                    </div>
+                </div>
+                <div id="flightsList" class="space-y-4">
+                    <!-- Flight cards will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div id="chatContainer" class="hidden card-glow p-6 mt-8">
+                <h3 class="text-xl font-bold mb-4">AI Assistant</h3>
+                <div id="chatMessages" class="space-y-4 max-h-64 overflow-y-auto mb-4">
+                </div>
+                <div class="flex space-x-2">
+                    <input type="text" id="chatInput" placeholder="Ask me anything about your flight..." class="input-field flex-1">
+                    <button class="btn-primary" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Voice button removed as requested -->
+
+    <!-- Risk Analysis Modal -->
+    <div id="riskModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeRiskModal()">&times;</span>
+            <h2 class="text-2xl font-bold mb-6">Flight Risk Analysis</h2>
+            <div id="riskAnalysisContent">
+                <!-- Risk analysis content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- PNR Tracker Modal -->
+    <div id="pnrModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closePNRModal()">&times;</span>
+            <h2 class="text-2xl font-bold mb-6">Track Your Flight</h2>
+            <div class="mb-6">
+                <label class="block text-sm font-medium mb-2">Enter PNR Number</label>
+                <div class="flex space-x-2">
+                    <input type="text" placeholder="Enter 6-digit PNR" class="input-field flex-1" id="pnrInput" maxlength="10">
+                    <button class="btn-primary" onclick="trackPNR()">Track</button>
+                </div>
+            </div>
+            <div id="pnrResults" class="hidden">
+                <!-- PNR results will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Comprehensive Analysis Modal -->
+    <div id="comprehensiveModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeComprehensiveModal()">&times;</span>
+            <h2 class="text-2xl font-bold mb-6">🎯 Comprehensive Route Analysis</h2>
+            <div id="comprehensiveAnalysisResults">
+                <!-- Comprehensive analysis results will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo Info -->
+    <section class="container mx-auto px-6 py-8 border-t border-gray-700">
+        <div class="text-center">
+            <h3 class="text-xl font-bold mb-4">Demo Features</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="card-glow p-6">
+                    <svg class="h-8 w-8 text-purple-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                    </svg>
+                    <h4 class="font-semibold mb-2">Voice Assistant</h4>
+                    <p class="text-gray-400 text-sm">
+                        Search flights using voice commands and get AI-powered responses
+                    </p>
+                </div>
+                <div class="card-glow p-6">
+                    <svg class="h-8 w-8 text-yellow-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                    <h4 class="font-semibold mb-2">Risk Prediction</h4>
+                    <p class="text-gray-400 text-sm">
+                        AI-based risk assessment with detailed charts and recommendations
+                    </p>
+                </div>
+                <div class="card-glow p-6">
+                    <svg class="h-8 w-8 text-green-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <h4 class="font-semibold mb-2">PNR Tracking</h4>
+                    <p class="text-gray-400 text-sm">
+                        Real-time flight status and booking details with PNR lookup
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        const API_BASE = 'http://localhost:8081';
+        let currentFlights = [];
+        let isListening = false;
+        let userLocation = null;
+        
+        // Airport codes mapping to coordinates
+        const airportCoordinates = {
+            'DEL': { lat: 28.5562, lng: 77.1000, name: 'Delhi' },
+            'BOM': { lat: 19.0896, lng: 72.8656, name: 'Mumbai' },
+            'BLR': { lat: 13.1986, lng: 77.7066, name: 'Bangalore' },
+            'HYD': { lat: 17.2403, lng: 78.4294, name: 'Hyderabad' },
+            'MAA': { lat: 12.9941, lng: 80.1709, name: 'Chennai' },
+            'CCU': { lat: 22.6547, lng: 88.4467, name: 'Kolkata' },
+            'GOA': { lat: 15.3808, lng: 73.8314, name: 'Goa' },
+            'AMD': { lat: 23.0225, lng: 72.5714, name: 'Ahmedabad' },
+            'PNQ': { lat: 18.5793, lng: 73.9089, name: 'Pune' },
+            'JAI': { lat: 26.8242, lng: 75.8122, name: 'Jaipur' },
+            'LKO': { lat: 26.7606, lng: 80.8893, name: 'Lucknow' },
+            'IXC': { lat: 30.6735, lng: 76.7885, name: 'Chandigarh' },
+            'VNS': { lat: 25.4526, lng: 82.8593, name: 'Varanasi' },
+            'IXB': { lat: 26.6812, lng: 88.3280, name: 'Siliguri' },
+            'RPR': { lat: 21.1809, lng: 81.7388, name: 'Raipur' },
+            'BHO': { lat: 23.2856, lng: 77.3371, name: 'Bhopal' },
+            'IDR': { lat: 22.7196, lng: 75.8008, name: 'Indore' },
+            'IXU': { lat: 19.8647, lng: 75.3981, name: 'Aurangabad' },
+            'IXD': { lat: 25.4401, lng: 81.7339, name: 'Allahabad' },
+            'IXJ': { lat: 32.6887, lng: 74.8380, name: 'Jammu' }
+        };
+
+        // Set default date to tomorrow
+        document.addEventListener('DOMContentLoaded', function() {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById('date').value = tomorrow.toISOString().split('T')[0];
+            
+            // Get user's location
+            getUserLocation();
+            
+            // Load user info
+            loadUserInfo();
+            
+            testBackend();
+            
+            document.getElementById('chatInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+
+            document.getElementById('pnrInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    trackPNR();
+                }
+            });
+        });
+        
+        // Get user's location using geolocation API
+        function getUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        const userLat = position.coords.latitude;
+                        const userLng = position.coords.longitude;
+                        
+                        // Find nearest airport
+                        const nearestAirport = findNearestAirport(userLat, userLng);
+                        if (nearestAirport) {
+                            // Set origin to nearest airport
+                            document.getElementById('origin').value = nearestAirport;
+                            showNotification(`Location detected: Using ${airportCoordinates[nearestAirport].name} as your origin`, 'info');
+                        }
+                    },
+                    error => {
+                        console.error('Geolocation error:', error);
+                        showNotification('Could not detect your location. Please select your origin manually.', 'info');
+                    }
+                );
+            } else {
+                showNotification('Geolocation is not supported by your browser. Please select your origin manually.', 'info');
+            }
+        }
+        
+        // Find nearest airport based on user's coordinates
+        function findNearestAirport(userLat, userLng) {
+            let nearestAirport = null;
+            let minDistance = Infinity;
+            
+            for (const [code, coords] of Object.entries(airportCoordinates)) {
+                const distance = calculateDistance(userLat, userLng, coords.lat, coords.lng);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestAirport = code;
+                }
+            }
+            
+            return nearestAirport;
+        }
+        
+        // Calculate distance between two coordinates using Haversine formula
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Radius of the earth in km
+            const dLat = deg2rad(lat2 - lat1);
+            const dLon = deg2rad(lon2 - lon1);
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const distance = R * c; // Distance in km
+            return distance;
+        }
+        
+        function deg2rad(deg) {
+            return deg * (Math.PI/180);
+        }
+        
+        // Load user information (simulating a logged-in user)
+        function loadUserInfo() {
+            // Try to get user info from URL parameters (for demo purposes)
+            const urlParams = new URLSearchParams(window.location.search);
+            const userName = urlParams.get('name') || 'User';
+            const userEmail = urlParams.get('email') || 'user@example.com';
+            
+            // Generate a random user if not provided
+            const randomNames = ['Alex', 'Jamie', 'Jordan', 'Taylor', 'Casey', 'Riley', 'Morgan', 'Avery'];
+            const randomName = userName === 'User' ? 
+                randomNames[Math.floor(Math.random() * randomNames.length)] + ' ' + 
+                String.fromCharCode(65 + Math.floor(Math.random() * 26)) : 
+                userName;
+            
+            // Create user info object
+            const userInfo = {
+                name: randomName,
+                email: userEmail,
+                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(randomName)}&background=6C63FF&color=fff`
+            };
+            
+            // Update header with user info
+            const userDisplay = document.querySelector('.flex.items-center.space-x-2');
+            if (userDisplay) {
+                userDisplay.innerHTML = `
+                    <img src="${userInfo.avatar}" alt="${userInfo.name}" class="w-8 h-8 rounded-full">
+                    <span class="text-sm text-gray-300">Welcome, ${userInfo.name}</span>
+                `;
+            }
+            
+            // Store user info in session storage for other components
+            sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
+            
+            // Log for debugging
+            console.log('User info loaded:', userInfo);
+            
+            return userInfo;
+        }
+
+        // Test backend connection on load
+        async function testBackend() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                console.log('✅ Backend connected:', data);
+                
+                showNotification('Backend Connected', 'success');
+            } catch (error) {
+                console.error('❌ Backend connection failed:', error);
+                showNotification('Backend Disconnected', 'error');
+            }
+        }
+
+        // Search flights function
+        async function searchFlights() {
+            const origin = document.getElementById('origin').value.trim().toUpperCase() || 'DEL';
+            const destination = document.getElementById('destination').value.trim().toUpperCase() || 'BOM';
+            const date = document.getElementById('date').value;
+            const budget = parseInt(document.getElementById('budget').value) || 10000;
+            
+            if (!date) {
+                showNotification('Please select a travel date', 'error');
+                return;
+            }
+
+            // Show loading state
+            const searchButton = document.getElementById('searchButtonText');
+            const searchSpinner = document.getElementById('searchSpinner');
+            searchButton.textContent = 'Searching...';
+            searchSpinner.classList.remove('hidden');
+            
+            try {
+                const response = await fetch(`${API_BASE}/flights/search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        origin: origin,
+                        destination: destination,
+                        date: date,
+                        budget: budget,
+                        passenger_count: 1
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.flights) {
+                    currentFlights = data.flights;
+                    displayFlights(data.flights);
+                    document.getElementById('flightResults').classList.remove('hidden');
+                    document.getElementById('flightCount').textContent = data.flights.length;
+                    
+                    showNotification(`Found ${data.flights.length} flights`, 'success');
+                } else {
+                    showNotification(data.message || 'No flights found', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Flight search error:', error);
+                showNotification('Flight search failed. Please try again.', 'error');
+            } finally {
+                // Reset loading state
+                searchButton.textContent = 'Search Flights';
+                searchSpinner.classList.add('hidden');
+            }
+        }
+
+        // Display flights in the UI
+        function displayFlights(flights) {
+            const flightsList = document.getElementById('flightsList');
+            flightsList.innerHTML = '';
+            
+            flights.forEach((flight, index) => {
+                const flightCard = createFlightCard(flight, index);
+                flightsList.appendChild(flightCard);
+            });
+            
+            // Show comprehensive analysis button if we have multiple flights
+            if (flights.length > 1) {
+                document.getElementById('comprehensiveAnalysisSection').classList.remove('hidden');
+            }
+        }
+
+        // Create flight card element
+        function createFlightCard(flight, index) {
+            const card = document.createElement('div');
+            card.className = 'card-glow p-6 flight-card';
+            
+            // Invert risk score to make higher score mean more dangerous flight
+            // Original score is 0-100 where higher is better
+            // New score is 0-100 where higher is worse
+            const riskScore = 100 - flight.risk_analysis.overall_risk_score;
+            
+            // Determine risk level based on new score
+            let riskLevel, riskColor, riskBadgeClass;
+            
+            if (riskScore < 30) {
+                riskLevel = 'Low Risk';
+                riskColor = 'green';
+                riskBadgeClass = 'risk-badge-low';
+            } else if (riskScore >= 30 && riskScore <= 60) {
+                riskLevel = 'Medium Risk';
+                riskColor = 'yellow';
+                riskBadgeClass = 'risk-badge-medium';
+            } else {
+                riskLevel = 'High Risk';
+                riskColor = 'red';
+                riskBadgeClass = 'risk-badge-high';
+            }
+            
+            // Update flight risk analysis with new values
+            flight.risk_analysis.overall_risk_score = riskScore;
+            flight.risk_analysis.risk_level = riskLevel;
+            flight.risk_analysis.risk_color = riskColor;
+            
+            // Determine price range
+            const price = flight.price;
+            let priceRange = '';
+            if (price < 5000) priceRange = 'Below ₹5k';
+            else if (price < 7000) priceRange = 'Below ₹7k';
+            else if (price < 10000) priceRange = 'Below ₹10k';
+            else if (price < 15000) priceRange = 'Below ₹15k';
+            else priceRange = 'Premium';
+            
+            card.innerHTML = `
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center">
+                            <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-lg">${flight.airline} ${flight.flight_number}</h4>
+                            <p class="text-gray-400">${flight.aircraft_type} • ${flight.duration}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="price-range-badge">${priceRange}</span>
+                        <div class="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-3 py-1 rounded-full text-sm font-medium">
+                            ${index === 0 ? 'Recommended' : 'Available'}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                    <div>
+                        <p class="text-sm text-gray-400">Departure</p>
+                        <p class="font-semibold">${flight.departure_time}</p>
+                        <p class="text-sm text-gray-400">${flight.origin.code} ${flight.origin.terminal}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-400">Arrival</p>
+                        <p class="font-semibold">${flight.arrival_time}</p>
+                        <p class="text-sm text-gray-400">${flight.destination.code} ${flight.destination.terminal}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-400">Price</p>
+                        <p class="font-semibold text-2xl">₹${flight.price.toLocaleString()}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-400">Risk Score</p>
+                        <div class="${riskBadgeClass}">
+                            ${riskLevel} (${riskScore}/100)
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-400">Seats Available</p>
+                        <p class="font-semibold">${flight.seats_available}</p>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-3">
+                    <button class="btn-primary flex-1" onclick="bookFlight('${flight.id}', '${flight.flight_number}')">
+                        Book Now
+                    </button>
+                    <button class="btn-secondary" onclick="showRiskAnalysis('${flight.id}')">
+                        Predict Risk Score
+                    </button>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        // Show risk analysis modal
+        async function showRiskAnalysis(flightId) {
+            const modal = document.getElementById('riskModal');
+            const content = document.getElementById('riskAnalysisContent');
+            
+            // Find the flight data
+            const flight = currentFlights.find(f => f.id === flightId);
+            if (!flight) return;
+            
+            // Show loading
+            content.innerHTML = '<div class="text-center py-8">Loading risk analysis...</div>';
+            modal.style.display = 'block';
+            
+            try {
+                // Get detailed risk analysis
+                const response = await fetch(`${API_BASE}/flights/${flightId}/risk-analysis`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayRiskAnalysis(flight, data.risk_analysis);
+                } else {
+                    content.innerHTML = '<div class="text-center py-8 text-red-400">Failed to load risk analysis</div>';
+                }
+            } catch (error) {
+                console.error('Risk analysis error:', error);
+                content.innerHTML = '<div class="text-center py-8 text-red-400">Error loading risk analysis</div>';
+            }
+        }
+
+        // Display risk analysis with charts
+        function displayRiskAnalysis(flight, riskData) {
+            const content = document.getElementById('riskAnalysisContent');
+            
+            // Get weather data from real-time data if available
+            const weatherData = flight.real_time_data?.origin_weather || {};
+            const weatherCondition = weatherData?.current?.condition?.text?.toLowerCase() || '';
+            
+            // Determine weather icon based on condition
+            let weatherIcon = '';
+            if (weatherCondition.includes('thunder') || weatherCondition.includes('storm')) {
+                weatherIcon = `
+                    <div class="flex items-center space-x-2 text-yellow-400">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        <span>Thunderstorm</span>
+                    </div>
+                `;
+            } else if (weatherCondition.includes('rain') || weatherCondition.includes('drizzle')) {
+                weatherIcon = `
+                    <div class="flex items-center space-x-2 text-blue-400">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                        </svg>
+                        <span>Rain</span>
+                    </div>
+                `;
+            } else if (weatherCondition.includes('cloud')) {
+                weatherIcon = `
+                    <div class="flex items-center space-x-2 text-gray-400">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+                        </svg>
+                        <span>Cloudy</span>
+                    </div>
+                `;
+            } else if (weatherCondition.includes('fog') || weatherCondition.includes('mist')) {
+                weatherIcon = `
+                    <div class="flex items-center space-x-2 text-gray-300">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                        </svg>
+                        <span>Fog/Mist</span>
+                    </div>
+                `;
+            } else {
+                weatherIcon = `
+                    <div class="flex items-center space-x-2 text-yellow-300">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                        <span>Clear</span>
+                    </div>
+                `;
+            }
+            
+            content.innerHTML = `
+                <div class="mb-6">
+                    <h3 class="text-xl font-bold mb-2">${flight.airline} ${flight.flight_number}</h3>
+                    <p class="text-gray-400">${flight.origin.city} to ${flight.destination.city} • ${flight.date}</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="card-glow p-4">
+                        <h4 class="font-semibold mb-4">Risk Factors Breakdown</h4>
+                        <canvas id="riskFactorsChart" width="300" height="300"></canvas>
+                    </div>
+                    <div class="card-glow p-4">
+                        <h4 class="font-semibold mb-4">Overall Risk Score</h4>
+                        <canvas id="riskScoreChart" width="300" height="200"></canvas>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="card-glow p-4">
+                        <h4 class="font-semibold mb-4">Risk Factors Details</h4>
+                        <div class="space-y-3">
+                            ${Object.entries(flight.risk_analysis.risk_factors).map(([factor, value]) => `
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm capitalize">${factor.replace('_', ' ')}</span>
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-20 bg-gray-700 rounded-full h-2">
+                                            <div class="bg-purple-500 h-2 rounded-full" style="width: ${100-value}%"></div>
+                                        </div>
+                                        <span class="text-sm">${(100-value).toFixed(1)}/100</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="card-glow p-4">
+                        <h4 class="font-semibold mb-4">Recommendations</h4>
+                        <ul class="space-y-2">
+                            ${flight.risk_analysis.recommendations.map(rec => `
+                                <li class="flex items-start space-x-2">
+                                    <svg class="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    <span class="text-sm">${rec}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="card-glow p-4 mb-6">
+                    <h4 class="font-semibold mb-4">Detected Weather Conditions</h4>
+                    <div class="flex items-center justify-between">
+                        ${weatherIcon}
+                        <div class="text-sm text-gray-400">
+                            ${weatherData?.current?.temp_c ? `Temperature: ${weatherData.current.temp_c}°C` : 'Weather data unavailable'}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-glow p-4 mb-6">
+                    <h4 class="font-semibold mb-4">Airfare Cost Analysis</h4>
+                    <canvas id="costAnalysisChart" width="400" height="200"></canvas>
+                </div>
+                
+                <div class="card-glow p-4 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-purple-500/30">
+                    <h4 class="font-semibold mb-2">AI Conclusion</h4>
+                    <p class="text-sm mb-4">${generateAIConclusion(flight, riskData)}</p>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-2xl font-bold text-purple-400">${flight.risk_analysis.overall_risk_score}/100</span>
+                            <span class="text-sm text-gray-400 ml-2">Risk Score</span>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-lg font-semibold ${flight.risk_analysis.risk_color === 'green' ? 'text-green-400' : flight.risk_analysis.risk_color === 'yellow' ? 'text-yellow-400' : 'text-red-400'}">
+                                ${flight.risk_analysis.risk_level}
+                            </div>
+                            <div class="text-sm text-gray-400">
+                                ${flight.risk_analysis.overall_risk_score >= 80 ? 'Highly Recommended' : flight.risk_analysis.overall_risk_score >= 60 ? 'Suitable for Travel' : 'Consider Alternatives'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Create charts after DOM is updated
+            setTimeout(() => {
+                createRiskFactorsChart(flight.risk_analysis.risk_factors);
+                createRiskScoreChart(flight.risk_analysis.overall_risk_score);
+                createCostAnalysisChart(flight.price);
+            }, 100);
+        }
+
+        // Generate AI conclusion with weather risk information
+        function generateAIConclusion(flight, riskData) {
+            // Note: We've inverted the risk score, so higher means more dangerous
+            const score = flight.risk_analysis.overall_risk_score;
+            const airline = flight.airline;
+            const price = flight.price;
+            
+            // Get weather data if available
+            const weatherData = flight.real_time_data?.origin_weather || {};
+            const weatherCondition = weatherData?.current?.condition?.text?.toLowerCase() || '';
+            
+            // Generate weather risk statement
+            let weatherStatement = '';
+            if (weatherCondition.includes('thunder') || weatherCondition.includes('storm')) {
+                weatherStatement = 'Current weather shows thunderstorm activity which may significantly impact flight operations. ';
+            } else if (weatherCondition.includes('rain') || weatherCondition.includes('drizzle')) {
+                weatherStatement = 'Current weather indicates rain which may cause minor delays. ';
+            } else if (weatherCondition.includes('cloud')) {
+                weatherStatement = 'Current weather is cloudy with minimal impact on flight operations. ';
+            } else if (weatherCondition.includes('fog') || weatherCondition.includes('mist')) {
+                weatherStatement = 'Current weather shows fog/mist which may impact visibility during takeoff and landing. ';
+            } else {
+                weatherStatement = 'Current weather conditions are favorable for flying. ';
+            }
+            
+            if (score < 30) {
+                return `${airline} ${flight.flight_number} is an excellent choice for your journey. With a low risk score of ${score}/100, this flight demonstrates strong operational reliability and minimal disruption risk. ${weatherStatement}The pricing at ₹${price.toLocaleString()} offers good value for the quality of service. This flight is highly recommended for a smooth travel experience.`;
+            } else if (score >= 30 && score <= 60) {
+                return `${airline} ${flight.flight_number} presents a reasonable option for your travel needs. With a moderate risk score of ${score}/100, this flight shows acceptable reliability with some risk factors to consider. ${weatherStatement}The fare of ₹${price.toLocaleString()} is competitive. While suitable for travel, we recommend reviewing the risk factors and considering travel insurance for added peace of mind.`;
+            } else {
+                return `${airline} ${flight.flight_number} shows elevated risk factors with a score of ${score}/100. ${weatherStatement}This flight may face higher chances of delays or disruptions due to weather, operational, or seasonal factors. At ₹${price.toLocaleString()}, consider if the savings justify the increased risk. We recommend exploring alternative flights or ensuring flexible booking options.`;
+            }
+        }
+
+        // Create risk factors pie chart
+        function createRiskFactorsChart(riskFactors) {
+            const ctx = document.getElementById('riskFactorsChart').getContext('2d');
+            
+            // Convert risk factors to positive scores (100 - risk)
+            const labels = Object.keys(riskFactors).map(key => key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()));
+            const data = Object.values(riskFactors).map(value => 100 - value);
+            
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#6C63FF', '#8B5CF6', '#EC4899', '#F59E0B',
+                            '#10B981', '#3B82F6', '#EF4444', '#6B7280'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#ffffff',
+                                font: { size: 10 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create risk score gauge chart
+        function createRiskScoreChart(score) {
+            const ctx = document.getElementById('riskScoreChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [score, 100 - score],
+                        backgroundColor: [
+                            score >= 80 ? '#10B981' : score >= 60 ? '#F59E0B' : '#EF4444',
+                            '#374151'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { display: false }
+                    }
+                },
+                plugins: [{
+                    beforeDraw: function(chart) {
+                        const width = chart.width;
+                        const height = chart.height;
+                        const ctx = chart.ctx;
+                        
+                        ctx.restore();
+                        const fontSize = (height / 114).toFixed(2);
+                        ctx.font = fontSize + "em sans-serif";
+                        ctx.textBaseline = "middle";
+                        ctx.fillStyle = "#ffffff";
+                        
+                        const text = score.toFixed(1);
+                        const textX = Math.round((width - ctx.measureText(text).width) / 2);
+                        const textY = height / 2;
+                        
+                        ctx.fillText(text, textX, textY);
+                        ctx.save();
+                    }
+                }]
+            });
+        }
+
+        // Create cost analysis chart with actual flight prices
+        function createCostAnalysisChart(price) {
+            const ctx = document.getElementById('costAnalysisChart').getContext('2d');
+            
+            // Generate price comparison data based on actual flight price
+            const priceRanges = ['Budget', 'Economy', 'Premium', 'Business'];
+            
+            // Use actual flight price for Economy class
+            // Budget is slightly cheaper, Premium and Business are more expensive
+            const prices = [
+                Math.round(price * 0.85),  // Budget price (15% less)
+                price,                     // Economy price (actual flight price)
+                Math.round(price * 1.5),   // Premium price (50% more)
+                Math.round(price * 2.5)    // Business price (150% more)
+            ];
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: priceRanges,
+                    datasets: [{
+                        label: 'Price (₹)',
+                        data: prices,
+                        backgroundColor: ['#10B981', '#6C63FF', '#F59E0B', '#EF4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Price: ₹${context.parsed.y.toLocaleString()}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { 
+                                color: '#ffffff',
+                                callback: function(value) {
+                                    return '₹' + value.toLocaleString();
+                                }
+                            },
+                            grid: { color: '#374151' }
+                        },
+                        x: {
+                            ticks: { color: '#ffffff' },
+                            grid: { color: '#374151' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Close risk modal
+        function closeRiskModal() {
+            document.getElementById('riskModal').style.display = 'none';
+        }
+
+        // Book flight function with ads and premium plans
+        async function bookFlight(flightId, flightNumber) {
+            // Redirect to booking.com with flight details
+            const flight = currentFlights.find(f => f.id === flightId);
+            if (!flight) return;
+            
+            // Create booking.com URL with flight details
+            const bookingUrl = `https://www.booking.com/flights/?origin=${flight.origin.code}&destination=${flight.destination.code}&departure_date=${flight.date}&flight_number=${flightNumber}`;
+            
+            // Show confirmation dialog
+            if (confirm(`Redirect to booking.com to complete booking for ${flightNumber}?`)) {
+                // Store user preferences in session storage before redirecting
+                sessionStorage.setItem('lastSearchOrigin', flight.origin.code);
+                sessionStorage.setItem('lastSearchDestination', flight.destination.code);
+                sessionStorage.setItem('lastSearchDate', flight.date);
+                sessionStorage.setItem('lastSearchPrice', flight.price);
+                sessionStorage.setItem('lastSearchFlightNumber', flightNumber);
+                
+                window.open(bookingUrl, '_blank');
+                
+                // Show booking completion dialog after a delay (simulating return from booking)
+                setTimeout(() => {
+                    showBookingCompletionDialog();
+                }, 3000);
+            }
+        }
+        
+        // Show booking completion dialog with ads
+        function showBookingCompletionDialog() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            
+            const lastSearchOrigin = sessionStorage.getItem('lastSearchOrigin') || 'DEL';
+            const lastSearchDestination = sessionStorage.getItem('lastSearchDestination') || 'BOM';
+            
+            // Generate random hotel and restaurant ads based on destination
+            const hotelAds = [
+                { name: `Luxury Hotel ${lastSearchDestination}`, price: '₹4,999/night', image: 'https://via.placeholder.com/100x60?text=Hotel' },
+                { name: `${lastSearchDestination} Grand Resort`, price: '₹6,499/night', image: 'https://via.placeholder.com/100x60?text=Resort' },
+                { name: `Budget Stay ${lastSearchDestination}`, price: '₹2,999/night', image: 'https://via.placeholder.com/100x60?text=Budget' }
+            ];
+            
+            const restaurantAds = [
+                { name: `${lastSearchDestination} Fine Dining`, cuisine: 'Multi-cuisine', image: 'https://via.placeholder.com/100x60?text=Restaurant' },
+                { name: `${lastSearchDestination} Street Food`, cuisine: 'Local cuisine', image: 'https://via.placeholder.com/100x60?text=Food' }
+            ];
+            
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <span class="close" onclick="closeBookingCompletionDialog()">&times;</span>
+                    
+                    <div class="mb-6">
+                        <h3 class="text-xl font-bold mb-4">Booking Confirmation</h3>
+                        
+                        <div class="mb-6">
+                            <p class="mb-4">Have you completed your booking on Booking.com?</p>
+                            
+                            <div class="flex space-x-4">
+                                <button class="btn-primary" onclick="handleBookingCompleted(true)">Yes, I've Booked</button>
+                                <button class="btn-secondary" onclick="handleBookingCompleted(false)">No, Not Yet</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-glow p-4 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="font-semibold">Recommended for Your Trip</h4>
+                            <button class="text-sm text-gray-400 hover:text-white" onclick="hideAds()">Hide Ads</button>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <h5 class="font-medium mb-2">Hotels in ${lastSearchDestination}</h5>
+                                <div class="space-y-2">
+                                    ${hotelAds.map(ad => `
+                                        <div class="flex items-center space-x-2 bg-gray-800/50 p-2 rounded">
+                                            <img src="${ad.image}" alt="${ad.name}" class="w-[100px] h-[60px] object-cover rounded">
+                                            <div>
+                                                <div class="font-medium">${ad.name}</div>
+                                                <div class="text-sm text-gray-400">${ad.price}</div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h5 class="font-medium mb-2">Restaurants in ${lastSearchDestination}</h5>
+                                <div class="space-y-2">
+                                    ${restaurantAds.map(ad => `
+                                        <div class="flex items-center space-x-2 bg-gray-800/50 p-2 rounded">
+                                            <img src="${ad.image}" alt="${ad.name}" class="w-[100px] h-[60px] object-cover rounded">
+                                            <div>
+                                                <div class="font-medium">${ad.name}</div>
+                                                <div class="text-sm text-gray-400">${ad.cuisine}</div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+        
+        // Handle booking completion response
+        function handleBookingCompleted(completed) {
+            if (completed) {
+                // Show PNR tracker if booking was completed
+                closeBookingCompletionDialog();
+                showPNRTracker();
+            } else {
+                // Store preferences in Supabase (simulated)
+                const lastSearchOrigin = sessionStorage.getItem('lastSearchOrigin');
+                const lastSearchDestination = sessionStorage.getItem('lastSearchDestination');
+                const lastSearchDate = sessionStorage.getItem('lastSearchDate');
+                const lastSearchPrice = sessionStorage.getItem('lastSearchPrice');
+                
+                console.log('Storing user preferences in Supabase:', {
+                    origin: lastSearchOrigin,
+                    destination: lastSearchDestination,
+                    date: lastSearchDate,
+                    price: lastSearchPrice
+                });
+                
+                showNotification('Your search preferences have been saved for future recommendations.', 'success');
+                closeBookingCompletionDialog();
+            }
+        }
+        
+        // Close booking completion dialog
+        function closeBookingCompletionDialog() {
+            const modal = document.querySelector('.modal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.remove();
+            }
+        }
+        
+        // Hide ads and show premium plans
+        function hideAds() {
+            const modal = document.querySelector('.modal');
+            if (modal) {
+                const modalContent = modal.querySelector('.modal-content');
+                
+                modalContent.innerHTML = `
+                    <span class="close" onclick="closeBookingCompletionDialog()">&times;</span>
+                    
+                    <div class="mb-6">
+                        <h3 class="text-xl font-bold mb-2">Upgrade to Premium</h3>
+                        <p class="text-gray-400 mb-6">Enjoy an ad-free experience with enhanced features</p>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="card-glow p-4 border-purple-500/30 hover:border-purple-500/60 transition-all">
+                                <h4 class="font-semibold text-lg mb-2 text-purple-400">Pro Plan</h4>
+                                <div class="text-2xl font-bold mb-4">₹499<span class="text-sm font-normal text-gray-400">/month</span></div>
+                                
+                                <ul class="space-y-2 mb-6">
+                                    <li class="flex items-start space-x-2">
+                                        <svg class="h-5 w-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                        <span>Ad-free experience</span>
+                                    </li>
+                                    <li class="flex items-start space-x-2">
+                                        <svg class="h-5 w-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                        <span>Enhanced risk prediction</span>
+                                    </li>
+                                    <li class="flex items-start space-x-2">
+                                        <svg class="h-5 w-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                        <span>Priority customer support</span>
+                                    </li>
+                                </ul>
+                                
+                                <button class="btn-primary w-full">Subscribe Now</button>
+                            </div>
+                            
+                            <div class="card-glow p-4 border-blue-500/30 hover:border-blue-500/60 transition-all">
+                                <h4 class="font-semibold text-lg mb-2 text-blue-400">Pro Plus Plan</h4>
+                                <div class="text-2xl font-bold mb-4">₹999<span class="text-sm font-normal text-gray-400">/month</span></div>
+                                
+                                <ul class="space-y-2 mb-6">
+                                    <li class="flex items-start space-x-2">
+                                        <svg class="h-5 w-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                        <span>All Pro features</span>
+                                    </li>
+                                    <li class="flex items-start space-x-2">
+                                        <svg class="h-5 w-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                        <span>Calendar sync (Apple, Google)</span>
+                                    </li>
+                                    <li class="flex items-start space-x-2">
+                                        <svg class="h-5 w-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                        <span>Personalized travel recommendations</span>
+                                    </li>
+                                    <li class="flex items-start space-x-2">
+                                        <svg class="h-5 w-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                        <span>Exclusive hotel & restaurant deals</span>
+                                    </li>
+                                </ul>
+                                
+                                <button class="btn-primary w-full bg-blue-500 hover:bg-blue-600">Subscribe Now</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Show PNR tracker modal
+        function showPNRTracker() {
+            document.getElementById('pnrModal').style.display = 'block';
+            document.getElementById('pnrInput').focus();
+        }
+
+        // Close PNR modal
+        function closePNRModal() {
+            document.getElementById('pnrModal').style.display = 'none';
+            document.getElementById('pnrResults').classList.add('hidden');
+            document.getElementById('pnrInput').value = '';
+        }
+
+        // Track PNR
+        async function trackPNR() {
+            const pnrNumber = document.getElementById('pnrInput').value.trim();
+            
+            if (!pnrNumber || pnrNumber.length < 6) {
+                showNotification('Please enter a valid PNR number', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/pnr/${pnrNumber}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayPNRResults(data.pnr_details);
+                } else {
+                    showNotification('PNR not found', 'error');
+                }
+            } catch (error) {
+                console.error('PNR tracking error:', error);
+                showNotification('Failed to track PNR', 'error');
+            }
+        }
+
+        // Display PNR results with user information from sign-up
+        function displayPNRResults(pnrData) {
+            const resultsDiv = document.getElementById('pnrResults');
+            const flight = pnrData.flight_details;
+            const status = pnrData.current_status;
+            
+            // Get user information from session storage
+            let userInfo = {
+                name: 'User',
+                email: 'user@example.com',
+                phone: '+91-9876543210'
+            };
+            
+            // Try to get actual user info from session storage
+            try {
+                const storedUserInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+                if (storedUserInfo) {
+                    userInfo.name = storedUserInfo.name;
+                    userInfo.email = storedUserInfo.email;
+                }
+            } catch (e) {
+                console.error('Error parsing user info from session storage:', e);
+            }
+            
+            // Use real-time data flag if available
+            const usingRealTimeData = pnrData.using_real_time_data || false;
+            
+            resultsDiv.innerHTML = `
+                <div class="card-glow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold">PNR: ${pnrData.pnr}</h3>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-3 py-1 rounded-full text-sm font-medium ${
+                                pnrData.status === 'Confirmed' ? 'bg-green-500/20 text-green-400' :
+                                pnrData.status === 'Waitlisted' ? 'bg-yellow-500/20 text-yellow-400' :
+                                'bg-red-500/20 text-red-400'
+                            }">
+                                ${pnrData.status}
+                            </span>
+                            ${usingRealTimeData ? `
+                                <span class="px-2 py-1 rounded-full text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                                    Real-time
+                                </span>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <h4 class="font-semibold mb-3">Passenger Details</h4>
+                            <div class="space-y-2 text-sm">
+                                <div><span class="text-gray-400">Name:</span> ${userInfo.name}</div>
+                                <div><span class="text-gray-400">Email:</span> ${userInfo.email}</div>
+                                <div><span class="text-gray-400">Phone:</span> ${userInfo.phone}</div>
+                                <div><span class="text-gray-400">Booking Date:</span> ${pnrData.booking_date}</div>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-3">Flight Details</h4>
+                            <div class="space-y-2 text-sm">
+                                <div><span class="text-gray-400">Flight:</span> ${flight.airline} ${flight.flight_number}</div>
+                                <div><span class="text-gray-400">Route:</span> ${flight.origin.city} → ${flight.destination.city}</div>
+                                <div><span class="text-gray-400">Date:</span> ${flight.departure_date}</div>
+                                <div><span class="text-gray-400">Time:</span> ${flight.departure_time} - ${flight.arrival_time}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-glow p-4 mb-4">
+                        <h4 class="font-semibold mb-3">Current Status</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-400">Status:</span>
+                                <div class="font-semibold ${
+                                    status.status === 'On Time' ? 'text-green-400' :
+                                    status.status === 'Delayed' ? 'text-yellow-400' :
+                                    'text-blue-400'
+                                }">${status.status}</div>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">Gate:</span>
+                                <div class="font-semibold">${status.gate}</div>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">Terminal:</span>
+                                <div class="font-semibold">${status.terminal}</div>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">Seat:</span>
+                                <div class="font-semibold">${flight.seat_number}</div>
+                            </div>
+                        </div>
+                        ${status.delay_minutes > 0 ? `
+                            <div class="mt-3 p-2 bg-yellow-500/20 border border-yellow-500/30 rounded text-sm">
+                                <strong>Delay Notice:</strong> Flight delayed by ${status.delay_minutes} minutes
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="text-xs text-gray-400">
+                        Last updated: ${status.last_updated}
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.classList.remove('hidden');
+        }
+
+        // Enhanced voice assistant functions
+        function activateVoiceSearch() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const recognition = new SpeechRecognition();
+                
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'en-IN';  // Indian English for better recognition
+                recognition.maxAlternatives = 3;
+                
+                const searchButton = document.querySelector('.btn-secondary');
+                searchButton.classList.add('listening');
+                searchButton.innerHTML = `
+                    <svg class="h-5 w-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                    </svg>
+                `;
+                isListening = true;
+                
+                let finalTranscript = '';
+                
+                recognition.onresult = function(event) {
+                    let interimTranscript = '';
+                    
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript;
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+                    
+                    // Show interim results
+                    if (interimTranscript) {
+                        showNotification(`Listening: "${interimTranscript}"`, 'info');
+                    }
+                    
+                    // Process final result
+                    if (finalTranscript) {
+                        console.log('Voice input:', finalTranscript);
+                        parseVoiceInput(finalTranscript);
+                        finalTranscript = '';
+                    }
+                };
+                
+                recognition.onerror = function(event) {
+                    console.error('Speech recognition error:', event.error);
+                    let errorMessage = 'Voice recognition failed';
+                    
+                    switch(event.error) {
+                        case 'no-speech':
+                            errorMessage = 'No speech detected. Please try again.';
+                            break;
+                        case 'audio-capture':
+                            errorMessage = 'Microphone not accessible. Please check permissions.';
+                            break;
+                        case 'not-allowed':
+                            errorMessage = 'Microphone permission denied. Please allow microphone access.';
+                            break;
+                        default:
+                            errorMessage = `Voice recognition error: ${event.error}`;
+                    }
+                    
+                    showNotification(errorMessage, 'error');
+                };
+                
+                recognition.onstart = function() {
+                    showNotification('🎤 Listening... Say "Search flights from Delhi to Mumbai under 5000 rupees"', 'info');
+                };
+                
+                recognition.onend = function() {
+                    searchButton.classList.remove('listening');
+                    searchButton.innerHTML = `
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                        </svg>
+                    `;
+                    isListening = false;
+                };
+                
+                try {
+                    recognition.start();
+                } catch (error) {
+                    console.error('Failed to start recognition:', error);
+                    showNotification('Failed to start voice recognition', 'error');
+                }
+            } else {
+                showNotification('Voice recognition not supported. Please use Chrome or Edge browser.', 'error');
+            }
+        }
+
+        // Enhanced intelligent voice input parsing for flight search
+        function parseVoiceInput(transcript) {
+            const text = transcript.toLowerCase();
+            
+            // Display the recognized text in the search bar
+            document.getElementById('voiceRecognitionText').textContent = `"${transcript}"`;
+            document.getElementById('voiceRecognitionDisplay').classList.remove('hidden');
+            
+            // City name mappings for voice recognition
+            const cityMappings = {
+                'delhi': 'DEL', 'mumbai': 'BOM', 'bombay': 'BOM', 'bangalore': 'BLR', 'bengaluru': 'BLR',
+                'hyderabad': 'HYD', 'chennai': 'MAA', 'madras': 'MAA', 'kolkata': 'CCU', 'calcutta': 'CCU',
+                'goa': 'GOA', 'ahmedabad': 'AMD', 'pune': 'PNQ', 'jaipur': 'JAI', 'lucknow': 'LKO',
+                'chandigarh': 'IXC', 'varanasi': 'VNS', 'banaras': 'VNS', 'siliguri': 'IXB',
+                'raipur': 'RPR', 'bhopal': 'BHO', 'indore': 'IDR', 'aurangabad': 'IXU',
+                'allahabad': 'IXD', 'prayagraj': 'IXD', 'jammu': 'IXJ'
+            };
+            
+            // Check for special queries
+            if (text.includes('best places') || text.includes('recommend') || text.includes('suggestion')) {
+                // Handle travel recommendations
+                if (text.includes('summer')) {
+                    showNotification('Based on your query, I recommend Goa, Shimla, or Manali for summer travel.', 'info');
+                    return;
+                } else if (text.includes('winter')) {
+                    showNotification('Based on your query, I recommend Kerala, Goa, or Rajasthan for winter travel.', 'info');
+                    return;
+                } else if (text.includes('monsoon')) {
+                    showNotification('Based on your query, I recommend Coorg, Munnar, or Udaipur for monsoon travel.', 'info');
+                    return;
+                } else {
+                    showNotification('Based on your query, I recommend popular destinations like Goa, Kerala, Rajasthan, or Himachal Pradesh.', 'info');
+                    return;
+                }
+            }
+            
+            // Check for flight status queries
+            if (text.includes('status') || text.includes('track')) {
+                if (text.includes('pnr') || text.includes('booking')) {
+                    showPNRTracker();
+                    return;
+                } else {
+                    showNotification('To check flight status, please use the Track PNR button and enter your PNR number.', 'info');
+                    return;
+                }
+            }
+            
+            // Enhanced pattern matching
+            let originCode = null;
+            let destinationCode = null;
+            
+            // Try different patterns for origin
+            const fromPatterns = [
+                /from\s+(\w+)/,
+                /leaving\s+from\s+(\w+)/,
+                /departing\s+from\s+(\w+)/,
+                /starting\s+from\s+(\w+)/
+            ];
+            
+            for (const pattern of fromPatterns) {
+                const match = text.match(pattern);
+                if (match) {
+                    const cityName = match[1];
+                    originCode = cityMappings[cityName] || cityName.toUpperCase();
+                    break;
+                }
+            }
+            
+            // Try different patterns for destination
+            const toPatterns = [
+                /to\s+(\w+)/,
+                /going\s+to\s+(\w+)/,
+                /flying\s+to\s+(\w+)/,
+                /destination\s+(\w+)/
+            ];
+            
+            for (const pattern of toPatterns) {
+                const match = text.match(pattern);
+                if (match) {
+                    const cityName = match[1];
+                    destinationCode = cityMappings[cityName] || cityName.toUpperCase();
+                    break;
+                }
+            }
+            
+            // Update form fields
+            if (originCode) {
+                document.getElementById('origin').value = originCode;
+            }
+            
+            if (destinationCode) {
+                document.getElementById('destination').value = destinationCode;
+            }
+            
+            // Extract budget with multiple patterns
+            const budgetPatterns = [
+                /budget\s+(\d+)/,
+                /under\s+(\d+)/,
+                /below\s+(\d+)/,
+                /maximum\s+(\d+)/,
+                /(\d+)\s+rupees?/,
+                /(\d+)\s+thousand/
+            ];
+            
+            for (const pattern of budgetPatterns) {
+                const match = text.match(pattern);
+                if (match) {
+                    let budget = parseInt(match[1]);
+                    if (text.includes('thousand')) {
+                        budget *= 1000;
+                    }
+                    document.getElementById('budget').value = budget;
+                    break;
+                }
+            }
+            
+            // Enhanced date parsing
+            if (text.includes('tomorrow')) {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                document.getElementById('date').value = tomorrow.toISOString().split('T')[0];
+            } else if (text.includes('today')) {
+                const today = new Date();
+                document.getElementById('date').value = today.toISOString().split('T')[0];
+            } else if (text.includes('next week')) {
+                const nextWeek = new Date();
+                nextWeek.setDate(nextWeek.getDate() + 7);
+                document.getElementById('date').value = nextWeek.toISOString().split('T')[0];
+            } else if (text.includes('weekend')) {
+                const today = new Date();
+                const daysUntilWeekend = 6 - today.getDay(); // Saturday is 6
+                const weekend = new Date();
+                weekend.setDate(today.getDate() + daysUntilWeekend);
+                document.getElementById('date').value = weekend.toISOString().split('T')[0];
+            } else if (text.includes('month')) {
+                const nextMonth = new Date();
+                nextMonth.setMonth(nextMonth.getMonth() + 1);
+                document.getElementById('date').value = nextMonth.toISOString().split('T')[0];
+            }
+            
+            // Auto-search if we have enough information
+            const origin = document.getElementById('origin').value;
+            const destination = document.getElementById('destination').value;
+            const date = document.getElementById('date').value;
+            
+            if (origin && destination && date) {
+                showNotification(`Voice command understood: ${origin} → ${destination}. Searching flights...`, 'success');
+                setTimeout(searchFlights, 1500);
+            } else {
+                let missing = [];
+                if (!origin) missing.push('origin city');
+                if (!destination) missing.push('destination city');
+                if (!date) missing.push('travel date');
+                
+                showNotification(`Please specify: ${missing.join(', ')}. Try saying "Search flights from Delhi to Mumbai tomorrow"`, 'info');
+            }
+        }
+
+        // Enhanced voice assistant with speech recognition
+        function activateVoice() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const recognition = new SpeechRecognition();
+                
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'en-IN';
+                recognition.maxAlternatives = 3;
+                
+                const voiceButton = document.getElementById('voiceButton');
+                voiceButton.classList.add('listening');
+                voiceButton.innerHTML = `
+                    <svg class="h-6 w-6 animate-pulse text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                    </svg>
+                `;
+                
+                let finalTranscript = '';
+                
+                recognition.onresult = function(event) {
+                    let interimTranscript = '';
+                    
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript;
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+                    
+                    if (interimTranscript) {
+                        showNotification(`Listening: "${interimTranscript}"`, 'info');
+                    }
+                    
+                    if (finalTranscript) {
+                        console.log('Voice input:', finalTranscript);
+                        processVoiceCommand(finalTranscript);
+                        finalTranscript = '';
+                    }
+                };
+                
+                recognition.onerror = function(event) {
+                    console.error('Speech recognition error:', event.error);
+                    let errorMessage = 'Voice recognition failed';
+                    
+                    switch(event.error) {
+                        case 'no-speech':
+                            errorMessage = 'No speech detected. Please try again.';
+                            break;
+                        case 'audio-capture':
+                            errorMessage = 'Microphone not accessible. Please check permissions.';
+                            break;
+                        case 'not-allowed':
+                            errorMessage = 'Microphone permission denied. Please allow microphone access.';
+                            break;
+                        default:
+                            errorMessage = `Voice recognition error: ${event.error}`;
+                    }
+                    
+                    showNotification(errorMessage, 'error');
+                };
+                
+                recognition.onstart = function() {
+                    showNotification('🎤 Listening... Say something like "Analyze my calendar" or "Suggest flights"', 'info');
+                };
+                
+                recognition.onend = function() {
+                    voiceButton.classList.remove('listening');
+                    voiceButton.innerHTML = `
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                        </svg>
+                    `;
+                };
+                
+                try {
+                    recognition.start();
+                } catch (error) {
+                    console.error('Failed to start recognition:', error);
+                    showNotification('Failed to start voice recognition', 'error');
+                }
+            } else {
+                // Fallback to text input
+                const message = prompt('Ask me anything about your flight:');
+                if (message) {
+                    processVoiceCommand(message);
+                }
+            }
+        }
+        
+        // Process voice commands through the backend with text-to-speech response
+        async function processVoiceCommand(message) {
+            try {
+                showNotification('Processing your request...', 'info');
+                
+                // If no origin is specified in the message but we have user location, use it
+                if (!message.toLowerCase().includes('from') && 
+                    document.getElementById('origin').value) {
+                    const originCode = document.getElementById('origin').value;
+                    const originName = airportCoordinates[originCode]?.name || originCode;
+                    message = `from ${originName} ${message}`;
+                    showNotification(`Using your location: ${originName}`, 'info');
+                }
+                
+                const response = await fetch(`${API_BASE}/chat/voice`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_id: 'DEMO_USER',
+                        text_input: message
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show chat container
+                    document.getElementById('chatContainer').classList.remove('hidden');
+                    
+                    // Add user message
+                    addChatMessage('You', message, 'user');
+                    
+                    // Add assistant response
+                    const assistantResponse = data.response.text;
+                    addChatMessage('AI Assistant', assistantResponse, 'assistant');
+                    
+                    // Show success notification
+                    showNotification('Voice command processed successfully!', 'success');
+                    
+                    // Handle specific response data
+                    if (data.response.data) {
+                        console.log('Response data:', data.response.data);
+                        
+                        // Handle calendar analysis results
+                        if (data.intent === 'calendar_analysis') {
+                            displayCalendarAnalysis(data.response.data);
+                        }
+                        
+                        // Handle flight suggestions
+                        if (data.intent === 'flight_suggestions') {
+                            displayFlightSuggestions(data.response.data);
+                        }
+                        
+                        // Handle cancellation costs
+                        if (data.intent === 'cancellation_cost') {
+                            displayCancellationCosts(data.response.data);
+                        }
+                    }
+                } else {
+                    showNotification(data.error || 'Failed to process voice command', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Voice command error:', error);
+                showNotification('Failed to process voice command', 'error');
+            }
+        }
+        
+        // Display calendar analysis results
+        function displayCalendarAnalysis(data) {
+            if (data.travel_events > 0) {
+                showNotification(`Found ${data.travel_events} travel events in your calendar`, 'success');
+            }
+        }
+        
+        // Display flight suggestions
+        function displayFlightSuggestions(data) {
+            const suggestions = data.flight_suggestions || [];
+            if (suggestions.length > 0) {
+                showNotification(`Generated ${suggestions.length} flight recommendations`, 'success');
+            }
+        }
+        
+        // Display cancellation costs
+        function displayCancellationCosts(data) {
+            const costs = data.cancellation_costs;
+            if (costs) {
+                const costNow = costs.now?.fee || 0;
+                const costLater = costs.week_later?.fee || 0;
+                showNotification(`Cancellation: Now ₹${costNow}, Later ₹${costLater}`, 'info');
+            }
+        }
+
+        // Voice chat function
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Show chat container
+            document.getElementById('chatContainer').classList.remove('hidden');
+            
+            // Add user message
+            addChatMessage('You', message, 'user');
+            input.value = '';
+            
+            try {
+                const response = await fetch(`${API_BASE}/chat/voice`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: 'DEMO_USER',
+                        text_input: message
+                    })
+                });
+                
+                const data = await response.json();
+                const assistantResponse = data.response?.text || 'Sorry, I could not process your request.';
+                
+                addChatMessage('Assistant', assistantResponse, 'assistant');
+                
+                // Speak the response using text-to-speech
+                speakResponse(assistantResponse);
+                
+                console.log('Voice chat response:', data);
+            } catch (error) {
+                console.error('Voice chat error:', error);
+                addChatMessage('Assistant', 'Sorry, there was an error processing your request.', 'assistant');
+            }
+        }
+
+        // Add chat message to UI
+        function addChatMessage(sender, message, type) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            
+            if (type === 'user') {
+                messageDiv.className = 'bg-purple-500/20 p-3 rounded-lg';
+                messageDiv.innerHTML = `
+                    <p class="text-sm text-purple-400">${sender}:</p>
+                    <p>${message}</p>
+                `;
+            } else {
+                messageDiv.className = 'bg-gray-700 p-3 rounded-lg';
+                messageDiv.innerHTML = `
+                    <p class="text-sm text-gray-400">${sender}:</p>
+                    <p>${message}</p>
+                `;
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Text-to-speech function
+        function speakResponse(text) {
+            // Check if browser supports speech synthesis
+            if ('speechSynthesis' in window) {
+                // Create a new speech synthesis utterance
+                const utterance = new SpeechSynthesisUtterance(text);
+                
+                // Configure voice settings
+                utterance.lang = 'en-US';
+                utterance.rate = 1.0; // Normal speed
+                utterance.pitch = 1.0; // Normal pitch
+                utterance.volume = 0.8; // 80% volume
+                
+                // Get available voices and set a good one if available
+                const voices = window.speechSynthesis.getVoices();
+                if (voices.length > 0) {
+                    // Try to find a female voice for assistant
+                    const femaleVoice = voices.find(voice => 
+                        voice.name.includes('Female') || 
+                        voice.name.includes('Google') || 
+                        voice.name.includes('Samantha'));
+                    
+                    if (femaleVoice) {
+                        utterance.voice = femaleVoice;
+                    }
+                }
+                
+                // Add a visual indicator that the assistant is speaking
+                const chatContainer = document.getElementById('chatContainer');
+                chatContainer.classList.add('speaking');
+                
+                // Speak the text
+                window.speechSynthesis.speak(utterance);
+                
+                // When speech ends, remove the speaking indicator
+                utterance.onend = function() {
+                    chatContainer.classList.remove('speaking');
+                };
+                
+                // If there's an error, log it
+                utterance.onerror = function(event) {
+                    console.error('Speech synthesis error:', event.error);
+                    chatContainer.classList.remove('speaking');
+                };
+            } else {
+                console.log('Text-to-speech not supported in this browser');
+            }
+        }
+
+        // Show notification
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 px-4 py-2 rounded-lg text-sm font-medium z-50 ${
+                type === 'success' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                type === 'error' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Comprehensive flight analysis functions
+        async function showComprehensiveAnalysis() {
+            if (!currentFlights || currentFlights.length === 0) {
+                showNotification('No flights to analyze. Please search for flights first.', 'error');
+                return;
+            }
+            
+            const modal = document.getElementById('comprehensiveModal');
+            const content = document.getElementById('comprehensiveAnalysisResults');
+            
+            // Show loading
+            content.innerHTML = '<div class="text-center py-8">🔍 Analyzing all flights... Please wait.</div>';
+            modal.style.display = 'block';
+            
+            try {
+                const response = await fetch(`${API_BASE}/flights/comprehensive-analysis`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ flights: currentFlights })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayComprehensiveAnalysis(data.comprehensive_analysis);
+                } else {
+                    content.innerHTML = '<div class="text-center py-8 text-red-400">Failed to analyze flights</div>';
+                }
+            } catch (error) {
+                console.error('Comprehensive analysis error:', error);
+                content.innerHTML = '<div class="text-center py-8 text-red-400">Error analyzing flights</div>';
+            }
+        }
+
+        function displayComprehensiveAnalysis(analysis) {
+            const content = document.getElementById('comprehensiveAnalysisResults');
+            const verdict = analysis.final_verdict;
+            
+            // Apply the advanced risk prediction algorithm to determine best and worst flights
+            const { bestFlights, worstFlights } = predictFlightRisks(analysis.flight_analyses);
+            
+            // Use the first flight from each list as the best and worst
+            const bestFlight = bestFlights.length > 0 ? bestFlights[0] : analysis.comparison_data.best_flight;
+            const worstFlight = worstFlights.length > 0 ? worstFlights[0] : analysis.comparison_data.worst_flight;
+            
+            // Update the comparison data with our new predictions
+            const comparison = {
+                ...analysis.comparison_data,
+                best_flight: bestFlight,
+                worst_flight: worstFlight
+            };
+            
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <!-- Route Overview -->
+                    <div class="card-glow p-6">
+                        <h3 class="text-xl font-bold mb-4">📍 Route: ${analysis.route}</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-purple-400">${analysis.total_flights_analyzed}</div>
+                                <div class="text-sm text-gray-400">Flights Analyzed</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-green-400">${verdict.overall_score}/100</div>
+                                <div class="text-sm text-gray-400">Route Score</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-lg font-semibold text-blue-400">${verdict.route_assessment}</div>
+                                <div class="text-sm text-gray-400">Assessment</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-lg font-semibold text-yellow-400">${verdict.confidence_level}</div>
+                                <div class="text-sm text-gray-400">Confidence</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Flight Comparison Chart -->
+                    <div class="card-glow p-6">
+                        <h3 class="text-xl font-bold mb-4">📊 Flight Comparison</h3>
+                        <canvas id="flightComparisonChart" width="600" height="400"></canvas>
+                    </div>
+                    
+                    <!-- Best vs Worst -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="card-glow p-6 border-green-500/30">
+                            <h4 class="font-bold mb-3 text-green-400">🏆 Best Flight</h4>
+                            <div class="space-y-2">
+                                <div><strong>${comparison.best_flight.airline} ${comparison.best_flight.flight_number}</strong></div>
+                                <div>Risk Score: <span class="text-green-400">${comparison.best_flight.risk_score}/100</span></div>
+                                <div>Price: <span class="text-blue-400">₹${comparison.best_flight.price.toLocaleString()}</span></div>
+                                <div class="text-sm text-gray-400">${comparison.best_flight.recommendation || 'Highly recommended for travel'}</div>
+                            </div>
+                        </div>
+                        <div class="card-glow p-6 border-red-500/30">
+                            <h4 class="font-bold mb-3 text-red-400">⚠️ Highest Risk</h4>
+                            <div class="space-y-2">
+                                <div><strong>${comparison.worst_flight.airline} ${comparison.worst_flight.flight_number}</strong></div>
+                                <div>Risk Score: <span class="text-red-400">${comparison.worst_flight.risk_score}/100</span></div>
+                                <div>Price: <span class="text-blue-400">₹${comparison.worst_flight.price.toLocaleString()}</span></div>
+                                <div class="text-sm text-gray-400">${comparison.worst_flight.recommendation || 'Consider alternative flights'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Verdict -->
+                    <div class="card-glow p-6 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-purple-500/30">
+                        <h3 class="text-xl font-bold mb-4">🤖 AI Final Verdict</h3>
+                        <p class="text-sm leading-relaxed mb-4">${verdict.verdict_text}</p>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="font-semibold mb-3">📋 Recommendations</h4>
+                                <ul class="space-y-2">
+                                    ${verdict.recommendations.map(rec => `
+                                        <li class="flex items-start space-x-2">
+                                            <svg class="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            <span class="text-sm">${rec}</span>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold mb-3">📈 Route Statistics</h4>
+                                <div class="space-y-2 text-sm">
+                                    <div>Average Risk: <span class="font-semibold">${comparison.average_risk_score}/100</span></div>
+                                    <div>Price Range: <span class="font-semibold">₹${comparison.price_analysis.cheapest.toLocaleString()} - ₹${comparison.price_analysis.most_expensive.toLocaleString()}</span></div>
+                                    <div>Risk Distribution:
+                                        <span class="text-green-400">${comparison.risk_distribution.low_risk}% Low</span>,
+                                        <span class="text-yellow-400">${comparison.risk_distribution.medium_risk}% Medium</span>,
+                                        <span class="text-red-400">${comparison.risk_distribution.high_risk}% High</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Create comparison chart
+            setTimeout(() => {
+                createFlightComparisonChart(analysis.flight_analyses);
+            }, 100);
+        }
+
+        function createFlightComparisonChart(flightAnalyses) {
+            const ctx = document.getElementById('flightComparisonChart').getContext('2d');
+            
+            const labels = flightAnalyses.map(f => `${f.airline} ${f.flight_number}`);
+            const riskScores = flightAnalyses.map(f => f.risk_score);
+            const prices = flightAnalyses.map(f => f.price);
+            
+            // Color code by risk level
+            const backgroundColors = riskScores.map(score => {
+                if (score >= 70) return '#10B981';      // Green for low risk
+                else if (score >= 40) return '#F59E0B'; // Yellow for medium risk
+                else return '#EF4444';                  // Red for high risk
+            });
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Risk Score',
+                        data: riskScores,
+                        backgroundColor: backgroundColors,
+                        borderWidth: 0,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Price (₹)',
+                        data: prices,
+                        type: 'line',
+                        borderColor: '#6C63FF',
+                        backgroundColor: 'rgba(108, 99, 255, 0.1)',
+                        borderWidth: 3,
+                        fill: false,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#ffffff' }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.datasetIndex === 0) {
+                                        return `Risk Score: ${context.parsed.y}/100`;
+                                    } else {
+                                        return `Price: ₹${context.parsed.y.toLocaleString()}`;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: '#ffffff',
+                                maxRotation: 45
+                            },
+                            grid: { color: '#374151' }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Risk Score (0-100)',
+                                color: '#ffffff'
+                            },
+                            ticks: { color: '#ffffff' },
+                            grid: { color: '#374151' },
+                            min: 0,
+                            max: 100
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Price (₹)',
+                                color: '#ffffff'
+                            },
+                            ticks: { color: '#ffffff' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function closeComprehensiveModal() {
+            document.getElementById('comprehensiveModal').style.display = 'none';
+        }
+        
+        // Advanced risk prediction algorithm implementation
+        function predictFlightRisks(flights) {
+            // Constants for the algorithm
+            const WEIGHTS = {
+                p_bad: 0.5,
+                impact: 0.2,
+                weather: 0.15,
+                conn: 0.1,
+                price: 0.05
+            };
+            const EXPECTED_DELAY_SCALE = 60.0; // minutes scaling for sigmoid
+            
+            // Helper functions
+            function sigmoid(x) {
+                return 1 / (1 + Math.exp(-x));
+            }
+            
+            function computeImpact(expDelayMinutes) {
+                return sigmoid(expDelayMinutes / EXPECTED_DELAY_SCALE);
+            }
+            
+            function normalizePrice(price, minPrice, maxPrice) {
+                if (maxPrice === minPrice) return 0.5;
+                return (price - minPrice) / (maxPrice - minPrice);
+            }
+            
+            // Extract prices for normalization
+            const prices = flights.map(f => f.price);
+            const minPrice = Math.min(...prices);
+            const maxPrice = Math.max(...prices);
+            
+            // Process each flight
+            const processedFlights = flights.map(flight => {
+                // Extract or estimate features
+                const historicalDelayRate = flight.risk_factors?.operational_risk / 100 || 0.1;
+                const historicalAvgDelay = flight.risk_factors?.time_of_day_risk || 10.0;
+                const weatherRisk = flight.risk_factors?.weather_risk / 100 || 0.0;
+                const connRisk = flight.risk_factors?.airport_risk / 100 || 0.0;
+                const priceNorm = 1.0 - normalizePrice(flight.price, minPrice, maxPrice); // cheaper -> lower risk
+                
+                // Calculate risk components
+                const pBad = historicalDelayRate;
+                const expDelay = historicalAvgDelay;
+                const impact = computeImpact(expDelay);
+                
+                // Calculate overall risk score
+                const rawRisk = (
+                    WEIGHTS.p_bad * pBad +
+                    WEIGHTS.impact * impact +
+                    WEIGHTS.weather * weatherRisk +
+                    WEIGHTS.conn * connRisk +
+                    WEIGHTS.price * priceNorm
+                );
+                
+                // Ensure risk is between 0 and 1, then scale to 0-100
+                const riskScore = Math.max(0.0, Math.min(1.0, rawRisk)) * 100;
+                
+                return {
+                    ...flight,
+                    calculatedRisk: riskScore,
+                    riskComponents: {
+                        pBad,
+                        expDelay,
+                        impact,
+                        weatherRisk,
+                        connRisk,
+                        priceNorm
+                    }
+                };
+            });
+            
+            // Sort flights by risk (ascending for best, descending for worst)
+            const sortedByRisk = [...processedFlights].sort((a, b) => a.calculatedRisk - b.calculatedRisk);
+            
+            // Get top 5 best and worst flights
+            const bestFlights = sortedByRisk.slice(0, 5);
+            const worstFlights = [...sortedByRisk].sort((a, b) => b.calculatedRisk - a.calculatedRisk).slice(0, 5);
+            
+            return { bestFlights, worstFlights };
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const riskModal = document.getElementById('riskModal');
+            const pnrModal = document.getElementById('pnrModal');
+            const comprehensiveModal = document.getElementById('comprehensiveModal');
+            
+            if (event.target === riskModal) {
+                closeRiskModal();
+            }
+            if (event.target === pnrModal) {
+                closePNRModal();
+            }
+            if (event.target === comprehensiveModal) {
+                closeComprehensiveModal();
+            }
+        }
+    </script>
+</body>
+</html>
