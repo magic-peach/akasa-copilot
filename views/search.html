@@ -314,6 +314,43 @@
                 </div>
             </div>
 
+            <!-- Calendar Events Section -->
+            <div id="calendarEventsSection" class="card-glow p-6 mt-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold flex items-center">
+                        <svg class="h-5 w-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        Your Calendar Events
+                    </h3>
+                    <button class="btn-secondary text-sm" onclick="loadCalendarEvents()">
+                        <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+                
+                <div id="calendarEventsLoading" class="text-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <p class="text-gray-400">Loading your calendar events...</p>
+                </div>
+                
+                <div id="calendarEventsContent" class="hidden">
+                    <div id="calendarEventsList" class="space-y-3">
+                        <!-- Calendar events will be inserted here -->
+                    </div>
+                    
+                    <div id="calendarEventsEmpty" class="text-center py-8 hidden">
+                        <svg class="h-12 w-12 text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <p class="text-gray-400 mb-4">No upcoming events found in your calendar</p>
+                        <p class="text-sm text-gray-500">Connect your Google Calendar to see travel-related events and get smart booking suggestions</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Flight Results -->
             <div id="flightResults" class="hidden">
                 <div class="flex items-center justify-between mb-6">
@@ -807,10 +844,40 @@
                         Predict Risk Score
                     </button>
                 </div>
+                <div class="mt-2 flex space-x-2">
+                    <button class="btn-secondary text-xs px-2 py-1" onclick="testWeatherAPI('${flight.origin || 'DEL'}')">
+                        Test Weather
+                    </button>
+                </div>
             `;
             
             return card;
         }
+
+        // Test weather API
+        async function testWeatherAPI(airportCode) {
+            try {
+                showNotification(`Testing weather API for ${airportCode}...`, 'info');
+                
+                const response = await fetch(`${API_BASE}/weather/${airportCode}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const weather = data.weather;
+                    showNotification(`Weather for ${airportCode}: ${weather.current.condition.text}, ${weather.current.temp_c}°C`, 'success');
+                    console.log('Weather data:', weather);
+                } else {
+                    showNotification(`Weather API failed: ${data.error}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Weather API test error:', error);
+                showNotification(`Weather API test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Make testWeatherAPI available globally
+        window.testWeatherAPI = testWeatherAPI;
 
         // Show risk analysis modal
         async function showRiskAnalysis(flightId) {
@@ -838,6 +905,61 @@
             } catch (error) {
                 console.error('Risk analysis error:', error);
                 content.innerHTML = '<div class="text-center py-8 text-red-400">Error loading risk analysis</div>';
+            }
+        }
+
+        // Get weather icon based on condition
+        function getWeatherIcon(condition) {
+            const conditionLower = condition.toLowerCase();
+            
+            if (conditionLower.includes('sunny') || conditionLower.includes('clear')) {
+                return `
+                    <div class="flex items-center justify-center w-12 h-12 bg-yellow-500/20 rounded-full">
+                        <svg class="h-6 w-6 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                    </div>
+                `;
+            } else if (conditionLower.includes('cloud') || conditionLower.includes('overcast')) {
+                return `
+                    <div class="flex items-center justify-center w-12 h-12 bg-gray-500/20 rounded-full">
+                        <svg class="h-6 w-6 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+                        </svg>
+                    </div>
+                `;
+            } else if (conditionLower.includes('rain') || conditionLower.includes('drizzle')) {
+                return `
+                    <div class="flex items-center justify-center w-12 h-12 bg-blue-500/20 rounded-full">
+                        <svg class="h-6 w-6 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 17h-4v-2h4v2zm0-4h-4v-2h4v2zm0-4h-4V7h4v2z"/>
+                        </svg>
+                    </div>
+                `;
+            } else if (conditionLower.includes('thunder') || conditionLower.includes('storm')) {
+                return `
+                    <div class="flex items-center justify-center w-12 h-12 bg-purple-500/20 rounded-full">
+                        <svg class="h-6 w-6 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                `;
+            } else if (conditionLower.includes('fog') || conditionLower.includes('mist') || conditionLower.includes('haze')) {
+                return `
+                    <div class="flex items-center justify-center w-12 h-12 bg-gray-400/20 rounded-full">
+                        <svg class="h-6 w-6 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+                        </svg>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="flex items-center justify-center w-12 h-12 bg-gray-500/20 rounded-full">
+                        <svg class="h-6 w-6 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                    </div>
+                `;
             }
         }
 
@@ -949,12 +1071,57 @@
                 
                 <div class="card-glow p-4 mb-6">
                     <h4 class="font-semibold mb-4">Detected Weather Conditions</h4>
-                    <div class="flex items-center justify-between">
-                        ${weatherIcon}
-                        <div class="text-sm text-gray-400">
-                            ${weatherData?.current?.temp_c ? `Temperature: ${weatherData.current.temp_c}°C` : 'Weather data unavailable'}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-gray-700/30 p-3 rounded-lg">
+                            <h5 class="text-sm font-medium text-blue-400 mb-2">Origin (${flight.origin || 'DEL'})</h5>
+                            <div class="flex items-center space-x-3">
+                                ${getWeatherIcon(riskData.origin_weather?.current?.condition?.text || 'Clear')}
+                                <div>
+                                    <div class="text-lg font-semibold">${riskData.origin_weather?.current?.condition?.text || 'Clear'}</div>
+                                    <div class="text-sm text-gray-400">
+                                        ${riskData.origin_weather?.current?.temp_c ? `${riskData.origin_weather.current.temp_c}°C` : '28°C'} | 
+                                        ${riskData.origin_weather?.current?.humidity ? `${riskData.origin_weather.current.humidity}% humidity` : '65% humidity'}
+                                    </div>
+                                    <div class="text-xs text-gray-500">
+                                        Wind: ${riskData.origin_weather?.current?.wind_kph || '12'} km/h ${riskData.origin_weather?.current?.wind_dir || 'NE'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-700/30 p-3 rounded-lg">
+                            <h5 class="text-sm font-medium text-green-400 mb-2">Destination (${flight.destination || 'BOM'})</h5>
+                            <div class="flex items-center space-x-3">
+                                ${getWeatherIcon(riskData.destination_weather?.current?.condition?.text || 'Clear')}
+                                <div>
+                                    <div class="text-lg font-semibold">${riskData.destination_weather?.current?.condition?.text || 'Clear'}</div>
+                                    <div class="text-sm text-gray-400">
+                                        ${riskData.destination_weather?.current?.temp_c ? `${riskData.destination_weather.current.temp_c}°C` : '30°C'} | 
+                                        ${riskData.destination_weather?.current?.humidity ? `${riskData.destination_weather.current.humidity}% humidity` : '70% humidity'}
+                                    </div>
+                                    <div class="text-xs text-gray-500">
+                                        Wind: ${riskData.destination_weather?.current?.wind_kph || '15'} km/h ${riskData.destination_weather?.current?.wind_dir || 'SW'}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    ${riskData.origin_weather?.forecast || riskData.destination_weather?.forecast ? `
+                        <div class="mt-4 pt-4 border-t border-gray-600">
+                            <h6 class="text-sm font-medium mb-2">Forecast</h6>
+                            <div class="grid grid-cols-2 gap-4 text-xs">
+                                <div>
+                                    <span class="text-gray-400">Today:</span>
+                                    <span class="text-white">${riskData.origin_weather?.forecast?.today?.condition || 'Sunny'}</span>
+                                    <span class="text-gray-400">(${riskData.origin_weather?.forecast?.today?.chance_of_rain || '10'}% rain)</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-400">Tomorrow:</span>
+                                    <span class="text-white">${riskData.origin_weather?.forecast?.tomorrow?.condition || 'Partly Cloudy'}</span>
+                                    <span class="text-gray-400">(${riskData.origin_weather?.forecast?.tomorrow?.chance_of_rain || '20'}% rain)</span>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
                 
                 <div class="card-glow p-4 mb-6">
@@ -1170,12 +1337,55 @@
             document.getElementById('riskModal').style.display = 'none';
         }
 
-        // Book flight function with ads and premium plans
+        // Book flight function with calendar conflict checking
         async function bookFlight(flightId, flightNumber) {
-            // Redirect to booking.com with flight details
             const flight = currentFlights.find(f => f.id === flightId);
             if (!flight) return;
             
+            // Check for calendar conflicts before booking
+            try {
+                const bookingDetails = {
+                    id: flightId,
+                    flight_number: flightNumber,
+                    origin: flight.origin.code,
+                    destination: flight.destination.code,
+                    departure_time: flight.departure_time,
+                    arrival_time: flight.arrival_time,
+                    date: flight.date,
+                    price: flight.price,
+                    // Add additional context for better conflict detection
+                    flight_duration: flight.duration,
+                    airline: flight.airline
+                };
+                
+                const response = await fetch('/calendar/check-conflicts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(bookingDetails)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.has_conflicts) {
+                    // Show conflict warning dialog
+                    showConflictWarningDialog(result.conflicts, flight, flightNumber);
+                    return;
+                }
+                
+                // No conflicts, proceed with booking
+                proceedWithBooking(flight, flightNumber);
+                
+            } catch (error) {
+                console.error('Error checking calendar conflicts:', error);
+                // If conflict check fails, proceed with booking anyway
+                proceedWithBooking(flight, flightNumber);
+            }
+        }
+        
+        // Proceed with booking after conflict check
+        function proceedWithBooking(flight, flightNumber) {
             // Create booking.com URL with flight details
             const bookingUrl = `https://www.booking.com/flights/?origin=${flight.origin.code}&destination=${flight.destination.code}&departure_date=${flight.date}&flight_number=${flightNumber}`;
             
@@ -1281,31 +1491,137 @@
         
         // Handle booking completion response
         function handleBookingCompleted(completed) {
+            console.log('Booking completion status:', completed);
+            
             if (completed) {
                 // Show PNR tracker if booking was completed
+                showNotification('Great! You can now track your booking using the PNR number.', 'success');
                 closeBookingCompletionDialog();
-                showPNRTracker();
+                
+                // Show PNR tracker after a short delay
+                setTimeout(() => {
+                    showPNRTracker();
+                }, 1000);
             } else {
-                // Store preferences in Supabase (simulated)
+                // Store preferences for future recommendations
                 const lastSearchOrigin = sessionStorage.getItem('lastSearchOrigin');
                 const lastSearchDestination = sessionStorage.getItem('lastSearchDestination');
                 const lastSearchDate = sessionStorage.getItem('lastSearchDate');
                 const lastSearchPrice = sessionStorage.getItem('lastSearchPrice');
                 
-                console.log('Storing user preferences in Supabase:', {
+                console.log('Storing user preferences for future recommendations:', {
                     origin: lastSearchOrigin,
                     destination: lastSearchDestination,
                     date: lastSearchDate,
                     price: lastSearchPrice
                 });
                 
-                showNotification('Your search preferences have been saved for future recommendations.', 'success');
+                showNotification('Your search preferences have been saved for future recommendations. You can continue searching for other flights.', 'success');
                 closeBookingCompletionDialog();
             }
         }
         
         // Close booking completion dialog
         function closeBookingCompletionDialog() {
+            const modal = document.querySelector('.modal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.remove();
+            }
+        }
+        
+        // Show conflict warning dialog
+        function showConflictWarningDialog(conflicts, flight, flightNumber) {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            
+            // Get the highest severity conflict
+            const highestSeverity = conflicts.reduce((max, conflict) => {
+                const severityOrder = { 'low': 1, 'medium': 2, 'high': 3, 'critical': 4 };
+                return severityOrder[conflict.severity] > severityOrder[max] ? conflict.severity : max;
+            }, 'low');
+            
+            // Get severity color
+            const severityColors = {
+                'low': 'text-yellow-400',
+                'medium': 'text-orange-400', 
+                'high': 'text-red-400',
+                'critical': 'text-red-600'
+            };
+            
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <span class="close" onclick="closeConflictWarningDialog()">&times;</span>
+                    <div class="text-center mb-6">
+                        <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-2 text-red-400">⚠️ Calendar Conflict Detected</h3>
+                        <p class="text-gray-300 mb-4">Your flight booking conflicts with events in your calendar</p>
+                    </div>
+                    
+                    <div class="bg-gray-800 rounded-lg p-4 mb-6">
+                        <h4 class="text-lg font-semibold mb-3 text-white">Flight Details:</h4>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div><span class="text-gray-400">Flight:</span> ${flightNumber}</div>
+                            <div><span class="text-gray-400">Route:</span> ${flight.origin.code} → ${flight.destination.code}</div>
+                            <div><span class="text-gray-400">Date:</span> ${flight.date}</div>
+                            <div><span class="text-gray-400">Time:</span> ${flight.departure_time} - ${flight.arrival_time}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4 mb-6">
+                        ${conflicts.map(conflict => `
+                            <div class="bg-gray-800 rounded-lg p-4 border-l-4 ${conflict.severity === 'critical' ? 'border-red-500' : conflict.severity === 'high' ? 'border-orange-500' : 'border-yellow-500'}">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="text-lg font-semibold ${severityColors[conflict.severity]}">
+                                        ${conflict.conflict_type.replace('_', ' ').toUpperCase()} - ${conflict.severity.toUpperCase()}
+                                    </h4>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <h5 class="text-sm font-medium text-gray-300 mb-2">Conflicting Events:</h5>
+                                    ${conflict.conflicting_events.map(event => `
+                                        <div class="bg-gray-700 rounded p-3 mb-2">
+                                            <div class="font-medium text-white">${event.summary}</div>
+                                            <div class="text-sm text-gray-400">
+                                                ${new Date(event.start_time).toLocaleDateString()} at ${new Date(event.start_time).toLocaleTimeString()}
+                                                ${event.location ? ` • ${event.location}` : ''}
+                                            </div>
+                                            ${event.travel_type ? `<div class="text-xs text-blue-400 mt-1">Type: ${event.travel_type}</div>` : ''}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                
+                                <div>
+                                    <h5 class="text-sm font-medium text-gray-300 mb-2">Suggested Actions:</h5>
+                                    <ul class="text-sm text-gray-400 space-y-1">
+                                        ${conflict.suggested_actions.map(action => `<li>• ${action}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="flex gap-4 justify-center">
+                        <button class="btn-secondary" onclick="closeConflictWarningDialog()">
+                            Cancel Booking
+                        </button>
+                        <button class="btn-primary" onclick="proceedWithBooking(${JSON.stringify(flight).replace(/"/g, '&quot;')}, '${flightNumber}'); closeConflictWarningDialog();">
+                            Proceed Anyway
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+        
+        // Close conflict warning dialog
+        function closeConflictWarningDialog() {
             const modal = document.querySelector('.modal');
             if (modal) {
                 modal.style.display = 'none';
@@ -1412,22 +1728,36 @@
             const pnrNumber = document.getElementById('pnrInput').value.trim();
             
             if (!pnrNumber || pnrNumber.length < 6) {
-                showNotification('Please enter a valid PNR number', 'error');
+                showNotification('Please enter a valid PNR number (6-10 digits)', 'error');
                 return;
             }
             
+            // Show loading state
+            const trackButton = document.querySelector('#pnrModal .btn-primary');
+            const originalText = trackButton.textContent;
+            trackButton.textContent = 'Tracking...';
+            trackButton.disabled = true;
+            
             try {
+                console.log('Tracking PNR:', pnrNumber);
                 const response = await fetch(`${API_BASE}/pnr/${pnrNumber}`);
                 const data = await response.json();
                 
-                if (data.success) {
+                console.log('PNR response:', data);
+                
+                if (data.success && data.pnr_details) {
                     displayPNRResults(data.pnr_details);
+                    showNotification('PNR details retrieved successfully!', 'success');
                 } else {
-                    showNotification('PNR not found', 'error');
+                    showNotification(data.error || 'PNR not found. Please check the number and try again.', 'error');
                 }
             } catch (error) {
                 console.error('PNR tracking error:', error);
-                showNotification('Failed to track PNR', 'error');
+                showNotification('Failed to track PNR. Please check your connection and try again.', 'error');
+            } finally {
+                // Reset button state
+                trackButton.textContent = originalText;
+                trackButton.disabled = false;
             }
         }
 
@@ -2108,6 +2438,9 @@
 
         // Comprehensive flight analysis functions
         async function showComprehensiveAnalysis() {
+            console.log('Starting comprehensive analysis...');
+            console.log('Current flights:', currentFlights);
+            
             if (!currentFlights || currentFlights.length === 0) {
                 showNotification('No flights to analyze. Please search for flights first.', 'error');
                 return;
@@ -2116,27 +2449,47 @@
             const modal = document.getElementById('comprehensiveModal');
             const content = document.getElementById('comprehensiveAnalysisResults');
             
+            if (!modal || !content) {
+                console.error('Modal or content element not found');
+                showNotification('Analysis modal not found. Please refresh the page.', 'error');
+                return;
+            }
+            
             // Show loading
-            content.innerHTML = '<div class="text-center py-8">🔍 Analyzing all flights... Please wait.</div>';
+            content.innerHTML = '<div class="text-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto"></div><p class="mt-2 text-gray-400">🔍 Analyzing all flights... Please wait.</p></div>';
             modal.style.display = 'block';
             
             try {
+                console.log('Sending request to:', `${API_BASE}/flights/comprehensive-analysis`);
+                console.log('Request data:', { flights: currentFlights });
+                
                 const response = await fetch(`${API_BASE}/flights/comprehensive-analysis`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ flights: currentFlights })
                 });
                 
-                const data = await response.json();
+                console.log('Response status:', response.status);
                 
-                if (data.success) {
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (data.success && data.comprehensive_analysis) {
                     displayComprehensiveAnalysis(data.comprehensive_analysis);
+                    showNotification('Comprehensive analysis completed successfully!', 'success');
                 } else {
-                    content.innerHTML = '<div class="text-center py-8 text-red-400">Failed to analyze flights</div>';
+                    content.innerHTML = `<div class="text-center py-8 text-red-400">Failed to analyze flights: ${data.error || 'Unknown error'}</div>`;
+                    showNotification('Failed to analyze flights. Please try again.', 'error');
                 }
             } catch (error) {
                 console.error('Comprehensive analysis error:', error);
-                content.innerHTML = '<div class="text-center py-8 text-red-400">Error analyzing flights</div>';
+                content.innerHTML = `<div class="text-center py-8 text-red-400">Error analyzing flights: ${error.message}</div>`;
+                showNotification('Error analyzing flights. Please try again.', 'error');
             }
         }
 
@@ -2446,6 +2799,129 @@
                 closeComprehensiveModal();
             }
         }
+        
+        // Calendar Events Functions
+        async function loadCalendarEvents() {
+            try {
+                document.getElementById('calendarEventsLoading').classList.remove('hidden');
+                document.getElementById('calendarEventsContent').classList.add('hidden');
+                
+                const response = await fetch('/calendar/events');
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayCalendarEvents(result.events);
+                } else {
+                    showNotification('Failed to load calendar events: ' + result.error, 'error');
+                    document.getElementById('calendarEventsEmpty').classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Error loading calendar events:', error);
+                showNotification('Error loading calendar events', 'error');
+                document.getElementById('calendarEventsEmpty').classList.remove('hidden');
+            } finally {
+                document.getElementById('calendarEventsLoading').classList.add('hidden');
+                document.getElementById('calendarEventsContent').classList.remove('hidden');
+            }
+        }
+        
+        function displayCalendarEvents(events) {
+            const eventsList = document.getElementById('calendarEventsList');
+            const emptyState = document.getElementById('calendarEventsEmpty');
+            
+            if (!events || events.length === 0) {
+                emptyState.classList.remove('hidden');
+                eventsList.innerHTML = '';
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            
+            // Sort events by start time
+            events.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+            
+            eventsList.innerHTML = events.map(event => {
+                const startDate = new Date(event.start_time);
+                const endDate = new Date(event.end_time);
+                const isToday = startDate.toDateString() === new Date().toDateString();
+                const isTravelRelated = event.is_travel_related;
+                
+                return `
+                    <div class="bg-gray-800 rounded-lg p-4 border-l-4 ${isTravelRelated ? 'border-blue-500' : 'border-gray-600'}">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center mb-2">
+                                    <h4 class="font-medium text-white">${event.summary}</h4>
+                                    ${isTravelRelated ? '<span class="ml-2 px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">Travel</span>' : ''}
+                                    ${isToday ? '<span class="ml-2 px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">Today</span>' : ''}
+                                </div>
+                                
+                                <div class="text-sm text-gray-400 mb-2">
+                                    <div class="flex items-center">
+                                        <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        ${startDate.toLocaleDateString()} at ${startDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                        ${endDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) !== startDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) ? 
+                                            ` - ${endDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : ''}
+                                    </div>
+                                    ${event.location ? `
+                                        <div class="flex items-center mt-1">
+                                            <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            </svg>
+                                            ${event.location}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                
+                                ${event.description ? `
+                                    <p class="text-sm text-gray-500 mt-2 line-clamp-2">${event.description}</p>
+                                ` : ''}
+                                
+                                ${isTravelRelated && event.destination_city ? `
+                                    <div class="mt-2">
+                                        <span class="text-xs text-blue-400 bg-blue-500/10 px-2 py-1 rounded">
+                                            Destination: ${event.destination_city}
+                                        </span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            
+                            <div class="ml-4 text-right">
+                                <div class="text-xs text-gray-500 mb-1">Priority</div>
+                                <div class="flex">
+                                    ${Array.from({length: 5}, (_, i) => `
+                                        <div class="w-2 h-2 rounded-full mr-1 ${i < event.priority ? 'bg-yellow-400' : 'bg-gray-600'}"></div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Load calendar events when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if user is authenticated before loading calendar events
+            fetch('/user/info')
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success && result.user.is_authenticated) {
+                        loadCalendarEvents();
+                    } else {
+                        // Hide calendar section if not authenticated
+                        document.getElementById('calendarEventsSection').style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking authentication:', error);
+                    // Hide calendar section if error
+                    document.getElementById('calendarEventsSection').style.display = 'none';
+                });
+        });
     </script>
 </body>
 </html>

@@ -521,5 +521,115 @@ class FlightSearchService:
         
         return recommendations[:3]  # Return top 3 recommendations
 
+    def get_pnr_info(self, pnr_number: str) -> Dict[str, Any]:
+        """
+        Get PNR information for tracking
+        
+        Args:
+            pnr_number: 6-10 digit PNR number
+            
+        Returns:
+            Dictionary containing PNR details and flight information
+        """
+        try:
+            # Validate PNR format
+            if not pnr_number or len(pnr_number) < 6 or len(pnr_number) > 10:
+                raise ValueError("Invalid PNR format")
+            
+            # Generate mock PNR data based on the PNR number
+            # In production, this would query a real database
+            pnr_data = self._generate_pnr_data(pnr_number)
+            
+            return pnr_data
+            
+        except Exception as e:
+            logger.error(f"Error getting PNR info for {pnr_number}: {str(e)}")
+            raise e
+    
+    def _generate_pnr_data(self, pnr_number: str) -> Dict[str, Any]:
+        """Generate mock PNR data for demonstration"""
+        import random
+        from datetime import datetime, timedelta
+        
+        # Use PNR as seed for consistent data
+        random.seed(hash(pnr_number) % 2**32)
+        
+        # Generate flight details
+        airports = list(self.airports.keys())
+        origin = random.choice(airports)
+        destination = random.choice([a for a in airports if a != origin])
+        
+        airline = random.choice(self.airlines)
+        flight_number = f"{airline[:2].upper()}{random.randint(100, 999)}"
+        
+        # Generate booking date (1-30 days ago)
+        booking_date = datetime.now() - timedelta(days=random.randint(1, 30))
+        
+        # Generate flight date (1-60 days from now)
+        flight_date = datetime.now() + timedelta(days=random.randint(1, 60))
+        
+        # Generate departure time
+        departure_hour = random.randint(6, 22)
+        departure_minute = random.choice([0, 15, 30, 45])
+        departure_time = flight_date.replace(hour=departure_hour, minute=departure_minute)
+        
+        # Calculate arrival time
+        route_key = (origin, destination)
+        base_duration = self.flight_durations.get(route_key, 120)
+        duration = base_duration + random.randint(-15, 30)
+        arrival_time = departure_time + timedelta(minutes=duration)
+        
+        # Generate current status
+        status_options = ['On Time', 'Delayed', 'Boarding', 'Departed']
+        current_status = random.choice(status_options)
+        
+        # Generate delay if status is delayed
+        delay_minutes = 0
+        if current_status == 'Delayed':
+            delay_minutes = random.randint(15, 120)
+        
+        # Generate gate and terminal
+        origin_info = self.airports.get(origin, {'terminals': ['T1']})
+        dest_info = self.airports.get(destination, {'terminals': ['T1']})
+        
+        gate = f"Gate {random.randint(1, 50)}"
+        terminal = random.choice(origin_info['terminals'])
+        
+        # Generate seat number
+        seat_number = f"{random.randint(1, 30)}{random.choice(['A', 'B', 'C', 'D', 'E', 'F'])}"
+        
+        return {
+            'pnr': pnr_number,
+            'status': 'Confirmed',  # Most bookings are confirmed
+            'booking_date': booking_date.strftime('%Y-%m-%d'),
+            'flight_details': {
+                'airline': airline,
+                'flight_number': flight_number,
+                'origin': {
+                    'code': origin,
+                    'city': self.airports[origin]['city'],
+                    'name': self.airports[origin]['name']
+                },
+                'destination': {
+                    'code': destination,
+                    'city': self.airports[destination]['city'],
+                    'name': self.airports[destination]['name']
+                },
+                'departure_date': flight_date.strftime('%Y-%m-%d'),
+                'departure_time': departure_time.strftime('%H:%M'),
+                'arrival_time': arrival_time.strftime('%H:%M'),
+                'seat_number': seat_number,
+                'class': 'Economy'
+            },
+            'current_status': {
+                'status': current_status,
+                'gate': gate,
+                'terminal': terminal,
+                'delay_minutes': delay_minutes,
+                'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            },
+            'using_real_time_data': random.choice([True, False])  # Simulate real-time data availability
+        }
+
 # Global flight search service instance
 flight_search_service = FlightSearchService()

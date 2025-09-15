@@ -23,6 +23,9 @@ This Flask-based API provides endpoints for creating and managing flight booking
 - ✅ **CORS Support**: Cross-origin resource sharing enabled
 - ✅ **Health Monitoring**: Health check endpoint for system monitoring
 - ✅ **Comprehensive Testing**: Full test suite included
+- ✅ **Google Calendar Integration**: Sync with user's Google Calendar events
+- ✅ **Smart Booking Alerts**: Conflict detection between flight bookings and calendar events
+- ✅ **Travel Event Recognition**: AI-powered identification of travel-related calendar events
 
 ## Quick Start
 
@@ -392,6 +395,155 @@ The current implementation includes mock services for:
 - **Pricing Engine**: Dynamic pricing with demand-based adjustments
 - **Seat Assignment**: Automatic seat allocation
 - **Gate/Terminal Assignment**: Airport resource allocation
+
+## Google Calendar Integration
+
+The application now includes comprehensive Google Calendar integration with intelligent conflict detection:
+
+### Calendar Sync Features
+- **Event Synchronization**: Automatically syncs user's Google Calendar events
+- **Travel Event Detection**: AI-powered identification of travel-related events
+- **Smart Filtering**: Filters out unimportant events (reminders, routine tasks)
+- **Priority Scoring**: Assigns priority levels to events based on importance
+- **Real-time Updates**: Refreshes calendar data on demand
+
+### Conflict Detection
+- **Booking Validation**: Checks flight bookings against calendar events before confirmation
+- **Multiple Conflict Types**: Detects overlaps, insufficient travel time, and wrong destinations
+- **Severity Assessment**: Categorizes conflicts as low, medium, high, or critical
+- **Smart Suggestions**: Provides actionable recommendations to resolve conflicts
+- **Visual Alerts**: User-friendly popup warnings with detailed conflict information
+
+### API Endpoints
+
+#### Get Calendar Events
+```http
+GET /calendar/events?days_ahead=30
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "events": [
+    {
+      "id": "event_123",
+      "summary": "Business Meeting in Mumbai",
+      "start_time": "2024-02-15T10:00:00Z",
+      "end_time": "2024-02-15T12:00:00Z",
+      "location": "Mumbai, India",
+      "is_travel_related": true,
+      "destination_city": "Mumbai",
+      "destination_airport": "BOM",
+      "travel_type": "business",
+      "priority": 4
+    }
+  ],
+  "total_events": 5,
+  "travel_events": 2
+}
+```
+
+#### Check Booking Conflicts
+```http
+POST /calendar/check-conflicts
+Content-Type: application/json
+
+{
+  "id": "flight_123",
+  "flight_number": "QP1001",
+  "origin": "DEL",
+  "destination": "BOM",
+  "departure_time": "2024-02-15T08:00:00Z",
+  "arrival_time": "2024-02-15T10:15:00Z",
+  "date": "2024-02-15"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "conflicts": [
+    {
+      "booking_id": "flight_123",
+      "conflict_type": "overlap",
+      "severity": "high",
+      "conflicting_events": [
+        {
+          "id": "event_123",
+          "summary": "Business Meeting in Mumbai",
+          "start_time": "2024-02-15T10:00:00Z",
+          "end_time": "2024-02-15T12:00:00Z",
+          "location": "Mumbai, India",
+          "travel_type": "business",
+          "priority": 4
+        }
+      ],
+      "suggested_actions": [
+        "Book an earlier flight to arrive before the meeting",
+        "Contact meeting organizers to reschedule",
+        "Consider extending your trip to accommodate both events"
+      ]
+    }
+  ],
+  "has_conflicts": true,
+  "total_conflicts": 1
+}
+```
+
+#### Get Flight Suggestions
+```http
+GET /calendar/flight-suggestions?origin=DEL
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "suggestions": [
+    {
+      "event_id": "event_123",
+      "event_summary": "Business Meeting in Mumbai",
+      "destination": "Mumbai",
+      "suggested_departure": "2024-02-15T08:00:00Z",
+      "suggested_return": "2024-02-15T14:00:00Z",
+      "flight_options": [
+        {
+          "flight_number": "QP1001",
+          "airline": "Akasa Air",
+          "departure_time": "08:00",
+          "arrival_time": "10:15",
+          "price": 8500,
+          "duration": "2h 15m"
+        }
+      ],
+      "conflict_warning": null,
+      "priority_score": 85.5
+    }
+  ],
+  "total_suggestions": 1
+}
+```
+
+### Frontend Integration
+
+The calendar integration includes a comprehensive frontend interface:
+
+- **Calendar Events Display**: Shows upcoming events with travel-related highlighting
+- **Conflict Warning Popup**: Detailed modal with conflict information and suggested actions
+- **Real-time Sync**: Automatic calendar refresh and event updates
+- **Visual Indicators**: Color-coded events based on type and priority
+- **Responsive Design**: Mobile-friendly calendar event display
+
+### Travel Event Classification
+
+The system intelligently classifies calendar events as travel-related based on:
+
+- **Keywords**: Business, personal, conference, meeting, travel, vacation
+- **Location Indicators**: "in", "at", "to", "from", "travel to", "going to"
+- **Destination Extraction**: Automatic city and airport code mapping
+- **Priority Scoring**: Based on event type, attendees, and importance keywords
 
 ## Architecture Notes
 
