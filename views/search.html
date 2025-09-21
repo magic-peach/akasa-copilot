@@ -180,6 +180,198 @@
             50% { opacity: 1; width: 40px; }
             100% { opacity: 0.3; width: 20px; }
         }
+        
+        /* Voice Chatbot Styles */
+        .chatbot-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            height: 500px;
+            background: #1a1a1a;
+            border: 1px solid #333333;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+        
+        .chatbot-container.collapsed {
+            height: 60px;
+            width: 60px;
+        }
+        
+        .chatbot-header {
+            background: linear-gradient(135deg, #6C63FF 0%, #5a52e6 100%);
+            padding: 12px 16px;
+            border-radius: 16px 16px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+        
+        .chatbot-title {
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .chatbot-toggle {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        
+        .chatbot-toggle:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .chatbot-messages {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .chatbot-message {
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        
+        .chatbot-message.bot {
+            background: #2a2a2a;
+            color: white;
+            align-self: flex-start;
+            border: 1px solid #333333;
+        }
+        
+        .chatbot-message.user {
+            background: #6C63FF;
+            color: white;
+            align-self: flex-end;
+        }
+        
+        .chatbot-input-container {
+            padding: 16px;
+            border-top: 1px solid #333333;
+            display: flex;
+            gap: 8px;
+        }
+        
+        .chatbot-input {
+            flex: 1;
+            background: #2a2a2a;
+            border: 1px solid #333333;
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            font-size: 14px;
+        }
+        
+        .chatbot-input:focus {
+            outline: none;
+            border-color: #6C63FF;
+        }
+        
+        .chatbot-send-btn {
+            background: #6C63FF;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .chatbot-send-btn:hover {
+            background: #5a52e6;
+        }
+        
+        .chatbot-send-btn:disabled {
+            background: #444444;
+            cursor: not-allowed;
+        }
+        
+        .voice-indicator {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            margin: 8px 16px;
+            border: 1px solid #6C63FF;
+        }
+        
+        .voice-indicator.active {
+            display: flex;
+        }
+        
+        .voice-dot {
+            width: 8px;
+            height: 8px;
+            background: #6C63FF;
+            border-radius: 50%;
+            animation: voice-pulse 1s infinite;
+        }
+        
+        @keyframes voice-pulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+        
+        .booking-confirmation-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .booking-confirmation-content {
+            background: #1a1a1a;
+            border: 1px solid #333333;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .conflict-alert {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 12px 0;
+        }
+        
+        .conflict-alert.warning {
+            background: rgba(251, 191, 36, 0.1);
+            border-color: rgba(251, 191, 36, 0.3);
+        }
+        
+        .conflict-alert.info {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
     </style>
 </head>
 <body class="text-white min-h-screen">
@@ -291,11 +483,6 @@
                                 </svg>
                             </span>
                         </button>
-                        <button class="btn-secondary" onclick="activateVoiceSearch()">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-                            </svg>
-                        </button>
                     </div>
                     <div id="voiceRecognitionDisplay" class="hidden text-sm text-gray-400 italic">
                         Recognized: <span id="voiceRecognitionText"></span>
@@ -311,6 +498,47 @@
                     <button class="btn-primary" onclick="showComprehensiveAnalysis()">
                         📊 Analyze All Flights
                     </button>
+                </div>
+            </div>
+
+            <!-- Proactive Travel Planning Section -->
+            <div id="proactivePlanningSection" class="card-glow p-6 mt-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold flex items-center">
+                        <svg class="h-5 w-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                        Proactive Travel Planning
+                    </h3>
+                    <button class="btn-secondary text-sm" onclick="loadProactiveSuggestions()">
+                        <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Get Suggestions
+                    </button>
+                </div>
+                
+                <div class="text-sm text-gray-400 mb-4">
+                    AI-powered travel suggestions based on your calendar events and travel patterns
+                </div>
+                
+                <div id="proactiveSuggestionsLoading" class="text-center py-8 hidden">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto mb-4"></div>
+                    <p class="text-gray-400">Analyzing your schedule for travel opportunities...</p>
+                </div>
+                
+                <div id="proactiveSuggestionsContent" class="hidden">
+                    <div id="proactiveSuggestionsList" class="space-y-4">
+                        <!-- Proactive suggestions will be inserted here -->
+                    </div>
+                    
+                    <div id="proactiveSuggestionsEmpty" class="text-center py-8 hidden">
+                        <svg class="h-12 w-12 text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                        <p class="text-gray-400 mb-4">No proactive suggestions available</p>
+                        <p class="text-sm text-gray-500">Connect your calendar to get personalized travel recommendations</p>
+                    </div>
                 </div>
             </div>
 
@@ -351,6 +579,7 @@
                 </div>
             </div>
 
+
             <!-- Flight Results -->
             <div id="flightResults" class="hidden">
                 <div class="flex items-center justify-between mb-6">
@@ -376,6 +605,86 @@
             </div>
         </div>
     </section>
+
+    <!-- Voice Chatbot -->
+    <div id="chatbotContainer" class="chatbot-container">
+        <div class="chatbot-header" onclick="toggleChatbot()">
+            <div class="chatbot-title">Akasa Assistant</div>
+            <button class="chatbot-toggle" id="chatbotToggle">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="chatbot-messages" id="chatbotMessages">
+            <div class="chatbot-message bot">
+                <div class="flex items-start gap-2">
+                    <div class="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="font-medium text-purple-400 mb-1">Akasa Assistant</div>
+                        <div>Hello! Nice to meet you! Feel free to ask me your queries about flights, travel destinations, or any assistance you need. I'm here to help! ✈️</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="voice-indicator" id="voiceIndicator">
+            <div class="voice-dot"></div>
+            <div class="voice-dot"></div>
+            <div class="voice-dot"></div>
+            <span class="text-sm text-gray-300">Listening...</span>
+        </div>
+        
+        <div class="chatbot-input-container">
+            <input type="text" class="chatbot-input" id="chatbotInput" placeholder="Type your message..." onkeypress="handleChatbotKeyPress(event)">
+            <button class="chatbot-send-btn" onclick="sendChatbotMessage()" id="chatbotSendBtn">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                </svg>
+            </button>
+            <button class="chatbot-send-btn" onclick="toggleVoiceInput()" id="voiceInputBtn" title="Voice Input">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Booking Confirmation Modal -->
+    <div id="bookingConfirmationModal" class="booking-confirmation-modal">
+        <div class="booking-confirmation-content">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-white">Confirm Your Booking</h3>
+                <button onclick="closeBookingConfirmation()" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div id="bookingDetails" class="mb-6">
+                <!-- Booking details will be populated here -->
+            </div>
+            
+            <div id="conflictAlerts" class="mb-6">
+                <!-- Conflict alerts will be populated here -->
+            </div>
+            
+            <div class="flex gap-4">
+                <button onclick="confirmBooking()" class="btn-primary flex-1">
+                    Confirm Booking
+                </button>
+                <button onclick="closeBookingConfirmation()" class="btn-secondary flex-1">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Voice button removed as requested -->
 
@@ -1342,46 +1651,22 @@
             const flight = currentFlights.find(f => f.id === flightId);
             if (!flight) return;
             
-            // Check for calendar conflicts before booking
-            try {
-                const bookingDetails = {
-                    id: flightId,
-                    flight_number: flightNumber,
-                    origin: flight.origin.code,
-                    destination: flight.destination.code,
-                    departure_time: flight.departure_time,
-                    arrival_time: flight.arrival_time,
-                    date: flight.date,
-                    price: flight.price,
-                    // Add additional context for better conflict detection
-                    flight_duration: flight.duration,
-                    airline: flight.airline
-                };
-                
-                const response = await fetch('/calendar/check-conflicts', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(bookingDetails)
-                });
-                
-                const result = await response.json();
-                
-                if (result.success && result.has_conflicts) {
-                    // Show conflict warning dialog
-                    showConflictWarningDialog(result.conflicts, flight, flightNumber);
-                    return;
-                }
-                
-                // No conflicts, proceed with booking
-                proceedWithBooking(flight, flightNumber);
-                
-            } catch (error) {
-                console.error('Error checking calendar conflicts:', error);
-                // If conflict check fails, proceed with booking anyway
-                proceedWithBooking(flight, flightNumber);
-            }
+            // Prepare flight data for confirmation modal
+            const flightData = {
+                id: flightId,
+                flight_number: flightNumber,
+                origin: flight.origin.code,
+                destination: flight.destination.code,
+                departure_time: flight.departure_time,
+                arrival_time: flight.arrival_time,
+                date: flight.date,
+                price: flight.price,
+                duration: flight.duration,
+                airline: flight.airline
+            };
+            
+            // Show booking confirmation modal with conflict checking
+            showBookingConfirmation(flightData);
         }
         
         // Proceed with booking after conflict check
@@ -1869,444 +2154,8 @@
             resultsDiv.classList.remove('hidden');
         }
 
-        // Enhanced voice assistant functions
-        function activateVoiceSearch() {
-            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                const recognition = new SpeechRecognition();
-                
-                recognition.continuous = false;
-                recognition.interimResults = true;
-                recognition.lang = 'en-IN';  // Indian English for better recognition
-                recognition.maxAlternatives = 3;
-                
-                const searchButton = document.querySelector('.btn-secondary');
-                searchButton.classList.add('listening');
-                searchButton.innerHTML = `
-                    <svg class="h-5 w-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-                    </svg>
-                `;
-                isListening = true;
-                
-                let finalTranscript = '';
-                
-                recognition.onresult = function(event) {
-                    let interimTranscript = '';
-                    
-                    for (let i = event.resultIndex; i < event.results.length; i++) {
-                        const transcript = event.results[i][0].transcript;
-                        if (event.results[i].isFinal) {
-                            finalTranscript += transcript;
-                        } else {
-                            interimTranscript += transcript;
-                        }
-                    }
-                    
-                    // Show interim results
-                    if (interimTranscript) {
-                        showNotification(`Listening: "${interimTranscript}"`, 'info');
-                    }
-                    
-                    // Process final result
-                    if (finalTranscript) {
-                        console.log('Voice input:', finalTranscript);
-                        parseVoiceInput(finalTranscript);
-                        finalTranscript = '';
-                    }
-                };
-                
-                recognition.onerror = function(event) {
-                    console.error('Speech recognition error:', event.error);
-                    let errorMessage = 'Voice recognition failed';
-                    
-                    switch(event.error) {
-                        case 'no-speech':
-                            errorMessage = 'No speech detected. Please try again.';
-                            break;
-                        case 'audio-capture':
-                            errorMessage = 'Microphone not accessible. Please check permissions.';
-                            break;
-                        case 'not-allowed':
-                            errorMessage = 'Microphone permission denied. Please allow microphone access.';
-                            break;
-                        default:
-                            errorMessage = `Voice recognition error: ${event.error}`;
-                    }
-                    
-                    showNotification(errorMessage, 'error');
-                };
-                
-                recognition.onstart = function() {
-                    showNotification('🎤 Listening... Say "Search flights from Delhi to Mumbai under 5000 rupees"', 'info');
-                };
-                
-                recognition.onend = function() {
-                    searchButton.classList.remove('listening');
-                    searchButton.innerHTML = `
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-                        </svg>
-                    `;
-                    isListening = false;
-                };
-                
-                try {
-                    recognition.start();
-                } catch (error) {
-                    console.error('Failed to start recognition:', error);
-                    showNotification('Failed to start voice recognition', 'error');
-                }
-            } else {
-                showNotification('Voice recognition not supported. Please use Chrome or Edge browser.', 'error');
-            }
-        }
 
-        // Enhanced intelligent voice input parsing for flight search
-        function parseVoiceInput(transcript) {
-            const text = transcript.toLowerCase();
-            
-            // Display the recognized text in the search bar
-            document.getElementById('voiceRecognitionText').textContent = `"${transcript}"`;
-            document.getElementById('voiceRecognitionDisplay').classList.remove('hidden');
-            
-            // City name mappings for voice recognition
-            const cityMappings = {
-                'delhi': 'DEL', 'mumbai': 'BOM', 'bombay': 'BOM', 'bangalore': 'BLR', 'bengaluru': 'BLR',
-                'hyderabad': 'HYD', 'chennai': 'MAA', 'madras': 'MAA', 'kolkata': 'CCU', 'calcutta': 'CCU',
-                'goa': 'GOA', 'ahmedabad': 'AMD', 'pune': 'PNQ', 'jaipur': 'JAI', 'lucknow': 'LKO',
-                'chandigarh': 'IXC', 'varanasi': 'VNS', 'banaras': 'VNS', 'siliguri': 'IXB',
-                'raipur': 'RPR', 'bhopal': 'BHO', 'indore': 'IDR', 'aurangabad': 'IXU',
-                'allahabad': 'IXD', 'prayagraj': 'IXD', 'jammu': 'IXJ'
-            };
-            
-            // Check for special queries
-            if (text.includes('best places') || text.includes('recommend') || text.includes('suggestion')) {
-                // Handle travel recommendations
-                if (text.includes('summer')) {
-                    showNotification('Based on your query, I recommend Goa, Shimla, or Manali for summer travel.', 'info');
-                    return;
-                } else if (text.includes('winter')) {
-                    showNotification('Based on your query, I recommend Kerala, Goa, or Rajasthan for winter travel.', 'info');
-                    return;
-                } else if (text.includes('monsoon')) {
-                    showNotification('Based on your query, I recommend Coorg, Munnar, or Udaipur for monsoon travel.', 'info');
-                    return;
-                } else {
-                    showNotification('Based on your query, I recommend popular destinations like Goa, Kerala, Rajasthan, or Himachal Pradesh.', 'info');
-                    return;
-                }
-            }
-            
-            // Check for flight status queries
-            if (text.includes('status') || text.includes('track')) {
-                if (text.includes('pnr') || text.includes('booking')) {
-                    showPNRTracker();
-                    return;
-                } else {
-                    showNotification('To check flight status, please use the Track PNR button and enter your PNR number.', 'info');
-                    return;
-                }
-            }
-            
-            // Enhanced pattern matching
-            let originCode = null;
-            let destinationCode = null;
-            
-            // Try different patterns for origin
-            const fromPatterns = [
-                /from\s+(\w+)/,
-                /leaving\s+from\s+(\w+)/,
-                /departing\s+from\s+(\w+)/,
-                /starting\s+from\s+(\w+)/
-            ];
-            
-            for (const pattern of fromPatterns) {
-                const match = text.match(pattern);
-                if (match) {
-                    const cityName = match[1];
-                    originCode = cityMappings[cityName] || cityName.toUpperCase();
-                    break;
-                }
-            }
-            
-            // Try different patterns for destination
-            const toPatterns = [
-                /to\s+(\w+)/,
-                /going\s+to\s+(\w+)/,
-                /flying\s+to\s+(\w+)/,
-                /destination\s+(\w+)/
-            ];
-            
-            for (const pattern of toPatterns) {
-                const match = text.match(pattern);
-                if (match) {
-                    const cityName = match[1];
-                    destinationCode = cityMappings[cityName] || cityName.toUpperCase();
-                    break;
-                }
-            }
-            
-            // Update form fields
-            if (originCode) {
-                document.getElementById('origin').value = originCode;
-            }
-            
-            if (destinationCode) {
-                document.getElementById('destination').value = destinationCode;
-            }
-            
-            // Extract budget with multiple patterns
-            const budgetPatterns = [
-                /budget\s+(\d+)/,
-                /under\s+(\d+)/,
-                /below\s+(\d+)/,
-                /maximum\s+(\d+)/,
-                /(\d+)\s+rupees?/,
-                /(\d+)\s+thousand/
-            ];
-            
-            for (const pattern of budgetPatterns) {
-                const match = text.match(pattern);
-                if (match) {
-                    let budget = parseInt(match[1]);
-                    if (text.includes('thousand')) {
-                        budget *= 1000;
-                    }
-                    document.getElementById('budget').value = budget;
-                    break;
-                }
-            }
-            
-            // Enhanced date parsing
-            if (text.includes('tomorrow')) {
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                document.getElementById('date').value = tomorrow.toISOString().split('T')[0];
-            } else if (text.includes('today')) {
-                const today = new Date();
-                document.getElementById('date').value = today.toISOString().split('T')[0];
-            } else if (text.includes('next week')) {
-                const nextWeek = new Date();
-                nextWeek.setDate(nextWeek.getDate() + 7);
-                document.getElementById('date').value = nextWeek.toISOString().split('T')[0];
-            } else if (text.includes('weekend')) {
-                const today = new Date();
-                const daysUntilWeekend = 6 - today.getDay(); // Saturday is 6
-                const weekend = new Date();
-                weekend.setDate(today.getDate() + daysUntilWeekend);
-                document.getElementById('date').value = weekend.toISOString().split('T')[0];
-            } else if (text.includes('month')) {
-                const nextMonth = new Date();
-                nextMonth.setMonth(nextMonth.getMonth() + 1);
-                document.getElementById('date').value = nextMonth.toISOString().split('T')[0];
-            }
-            
-            // Auto-search if we have enough information
-            const origin = document.getElementById('origin').value;
-            const destination = document.getElementById('destination').value;
-            const date = document.getElementById('date').value;
-            
-            if (origin && destination && date) {
-                showNotification(`Voice command understood: ${origin} → ${destination}. Searching flights...`, 'success');
-                setTimeout(searchFlights, 1500);
-            } else {
-                let missing = [];
-                if (!origin) missing.push('origin city');
-                if (!destination) missing.push('destination city');
-                if (!date) missing.push('travel date');
-                
-                showNotification(`Please specify: ${missing.join(', ')}. Try saying "Search flights from Delhi to Mumbai tomorrow"`, 'info');
-            }
-        }
 
-        // Enhanced voice assistant with speech recognition
-        function activateVoice() {
-            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                const recognition = new SpeechRecognition();
-                
-                recognition.continuous = false;
-                recognition.interimResults = true;
-                recognition.lang = 'en-IN';
-                recognition.maxAlternatives = 3;
-                
-                const voiceButton = document.getElementById('voiceButton');
-                voiceButton.classList.add('listening');
-                voiceButton.innerHTML = `
-                    <svg class="h-6 w-6 animate-pulse text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-                    </svg>
-                `;
-                
-                let finalTranscript = '';
-                
-                recognition.onresult = function(event) {
-                    let interimTranscript = '';
-                    
-                    for (let i = event.resultIndex; i < event.results.length; i++) {
-                        const transcript = event.results[i][0].transcript;
-                        if (event.results[i].isFinal) {
-                            finalTranscript += transcript;
-                        } else {
-                            interimTranscript += transcript;
-                        }
-                    }
-                    
-                    if (interimTranscript) {
-                        showNotification(`Listening: "${interimTranscript}"`, 'info');
-                    }
-                    
-                    if (finalTranscript) {
-                        console.log('Voice input:', finalTranscript);
-                        processVoiceCommand(finalTranscript);
-                        finalTranscript = '';
-                    }
-                };
-                
-                recognition.onerror = function(event) {
-                    console.error('Speech recognition error:', event.error);
-                    let errorMessage = 'Voice recognition failed';
-                    
-                    switch(event.error) {
-                        case 'no-speech':
-                            errorMessage = 'No speech detected. Please try again.';
-                            break;
-                        case 'audio-capture':
-                            errorMessage = 'Microphone not accessible. Please check permissions.';
-                            break;
-                        case 'not-allowed':
-                            errorMessage = 'Microphone permission denied. Please allow microphone access.';
-                            break;
-                        default:
-                            errorMessage = `Voice recognition error: ${event.error}`;
-                    }
-                    
-                    showNotification(errorMessage, 'error');
-                };
-                
-                recognition.onstart = function() {
-                    showNotification('🎤 Listening... Say something like "Analyze my calendar" or "Suggest flights"', 'info');
-                };
-                
-                recognition.onend = function() {
-                    voiceButton.classList.remove('listening');
-                    voiceButton.innerHTML = `
-                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-                        </svg>
-                    `;
-                };
-                
-                try {
-                    recognition.start();
-                } catch (error) {
-                    console.error('Failed to start recognition:', error);
-                    showNotification('Failed to start voice recognition', 'error');
-                }
-            } else {
-                // Fallback to text input
-                const message = prompt('Ask me anything about your flight:');
-                if (message) {
-                    processVoiceCommand(message);
-                }
-            }
-        }
-        
-        // Process voice commands through the backend with text-to-speech response
-        async function processVoiceCommand(message) {
-            try {
-                showNotification('Processing your request...', 'info');
-                
-                // If no origin is specified in the message but we have user location, use it
-                if (!message.toLowerCase().includes('from') && 
-                    document.getElementById('origin').value) {
-                    const originCode = document.getElementById('origin').value;
-                    const originName = airportCoordinates[originCode]?.name || originCode;
-                    message = `from ${originName} ${message}`;
-                    showNotification(`Using your location: ${originName}`, 'info');
-                }
-                
-                const response = await fetch(`${API_BASE}/chat/voice`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        user_id: 'DEMO_USER',
-                        text_input: message
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Show chat container
-                    document.getElementById('chatContainer').classList.remove('hidden');
-                    
-                    // Add user message
-                    addChatMessage('You', message, 'user');
-                    
-                    // Add assistant response
-                    const assistantResponse = data.response.text;
-                    addChatMessage('AI Assistant', assistantResponse, 'assistant');
-                    
-                    // Show success notification
-                    showNotification('Voice command processed successfully!', 'success');
-                    
-                    // Handle specific response data
-                    if (data.response.data) {
-                        console.log('Response data:', data.response.data);
-                        
-                        // Handle calendar analysis results
-                        if (data.intent === 'calendar_analysis') {
-                            displayCalendarAnalysis(data.response.data);
-                        }
-                        
-                        // Handle flight suggestions
-                        if (data.intent === 'flight_suggestions') {
-                            displayFlightSuggestions(data.response.data);
-                        }
-                        
-                        // Handle cancellation costs
-                        if (data.intent === 'cancellation_cost') {
-                            displayCancellationCosts(data.response.data);
-                        }
-                    }
-                } else {
-                    showNotification(data.error || 'Failed to process voice command', 'error');
-                }
-                
-            } catch (error) {
-                console.error('Voice command error:', error);
-                showNotification('Failed to process voice command', 'error');
-            }
-        }
-        
-        // Display calendar analysis results
-        function displayCalendarAnalysis(data) {
-            if (data.travel_events > 0) {
-                showNotification(`Found ${data.travel_events} travel events in your calendar`, 'success');
-            }
-        }
-        
-        // Display flight suggestions
-        function displayFlightSuggestions(data) {
-            const suggestions = data.flight_suggestions || [];
-            if (suggestions.length > 0) {
-                showNotification(`Generated ${suggestions.length} flight recommendations`, 'success');
-            }
-        }
-        
-        // Display cancellation costs
-        function displayCancellationCosts(data) {
-            const costs = data.cancellation_costs;
-            if (costs) {
-                const costNow = costs.now?.fee || 0;
-                const costLater = costs.week_later?.fee || 0;
-                showNotification(`Cancellation: Now ₹${costNow}, Later ₹${costLater}`, 'info');
-            }
-        }
 
         // Voice chat function
         async function sendMessage() {
@@ -2327,8 +2176,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        user_id: 'DEMO_USER',
-                        text_input: message
+                        message: message
                     })
                 });
                 
@@ -2800,6 +2648,122 @@
             }
         }
         
+        // Proactive Travel Planning Functions
+        async function loadProactiveSuggestions() {
+            const loadingDiv = document.getElementById('proactiveSuggestionsLoading');
+            const contentDiv = document.getElementById('proactiveSuggestionsContent');
+            const suggestionsList = document.getElementById('proactiveSuggestionsList');
+            const emptyDiv = document.getElementById('proactiveSuggestionsEmpty');
+            
+            loadingDiv.classList.remove('hidden');
+            contentDiv.classList.add('hidden');
+            
+            try {
+                // Get flight suggestions based on calendar events
+                const response = await fetch('/calendar/flight-suggestions');
+                const data = await response.json();
+                
+                if (data.success && data.suggestions.length > 0) {
+                    let suggestionsHTML = '';
+                    data.suggestions.forEach(suggestion => {
+                        const departureDate = new Date(suggestion.suggested_departure).toLocaleDateString();
+                        const returnDate = new Date(suggestion.suggested_return).toLocaleDateString();
+                        
+                        suggestionsHTML += `
+                            <div class="bg-gradient-to-r from-green-900/20 to-blue-900/20 border border-green-500/30 rounded-lg p-4">
+                                <div class="flex items-start justify-between mb-3">
+                                    <div class="flex-1">
+                                        <h4 class="font-semibold text-white mb-1">${suggestion.event_summary}</h4>
+                                        <p class="text-sm text-gray-300">📍 ${suggestion.destination}</p>
+                                        <div class="flex items-center gap-4 mt-2 text-sm text-gray-400">
+                                            <span>📅 Depart: ${departureDate}</span>
+                                            <span>🔄 Return: ${returnDate}</span>
+                                        </div>
+                                        ${suggestion.conflict_warning ? `<div class="mt-2 text-xs text-yellow-400">⚠️ ${suggestion.conflict_warning}</div>` : ''}
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-sm text-green-400 font-medium">Score: ${suggestion.priority_score.toFixed(1)}</div>
+                                        <button class="mt-2 text-xs bg-green-600 hover:bg-green-700 px-3 py-1 rounded" onclick="searchForSuggestion('${suggestion.destination}', '${suggestion.suggested_departure}')">
+                                            Search Flights
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                ${suggestion.flight_options && suggestion.flight_options.length > 0 ? `
+                                    <div class="mt-3 pt-3 border-t border-gray-700">
+                                        <h5 class="text-sm font-medium text-gray-300 mb-2">Recommended Flights:</h5>
+                                        <div class="space-y-2">
+                                            ${suggestion.flight_options.slice(0, 2).map(flight => `
+                                                <div class="flex items-center justify-between bg-gray-800 rounded p-2">
+                                                    <div class="flex items-center gap-3">
+                                                        <span class="text-sm font-medium text-white">${flight.flight_number}</span>
+                                                        <span class="text-xs text-gray-400">${flight.departure_time} - ${flight.arrival_time}</span>
+                                                        <span class="text-xs text-gray-500">${flight.duration}</span>
+                                                    </div>
+                                                    <div class="text-right">
+                                                        <div class="text-sm font-medium text-green-400">₹${flight.price.toLocaleString()}</div>
+                                                        <button class="text-xs bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded mt-1" onclick="bookFlight('${flight.flight_number}', ${flight.price})">
+                                                            Book Now
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    });
+                    
+                    suggestionsList.innerHTML = suggestionsHTML;
+                    contentDiv.classList.remove('hidden');
+                    emptyDiv.classList.add('hidden');
+                } else {
+                    contentDiv.classList.add('hidden');
+                    emptyDiv.classList.remove('hidden');
+                }
+                
+            } catch (error) {
+                console.error('Error loading proactive suggestions:', error);
+                contentDiv.classList.add('hidden');
+                emptyDiv.classList.remove('hidden');
+            } finally {
+                loadingDiv.classList.add('hidden');
+            }
+        }
+
+        // Search for flights based on suggestion
+        function searchForSuggestion(destination, departureDate) {
+            // Set the search form with suggestion data
+            document.getElementById('destination').value = destination;
+            document.getElementById('date').value = departureDate.split('T')[0];
+            
+            // Trigger search
+            searchFlights();
+            
+            // Scroll to search results
+            setTimeout(() => {
+                document.getElementById('flightResults').scrollIntoView({ behavior: 'smooth' });
+            }, 1000);
+        }
+
+        // Book flight from suggestion
+        function bookFlight(flightNumber, price) {
+            // Create mock flight data for booking
+            const flightData = {
+                flight_number: flightNumber,
+                airline: 'Akasa Air',
+                origin: document.getElementById('origin').value,
+                destination: document.getElementById('destination').value,
+                departure_time: '10:00',
+                arrival_time: '12:15',
+                duration: '2h 15m',
+                price: price
+            };
+            
+            showBookingConfirmation(flightData);
+        }
+
         // Calendar Events Functions
         async function loadCalendarEvents() {
             try {
@@ -2922,6 +2886,686 @@
                     document.getElementById('calendarEventsSection').style.display = 'none';
                 });
         });
+
+        // Voice Chatbot Functions
+        let chatbotCollapsed = false;
+        let currentBookingData = null;
+
+        function toggleChatbot() {
+            const container = document.getElementById('chatbotContainer');
+            const toggle = document.getElementById('chatbotToggle');
+            
+            chatbotCollapsed = !chatbotCollapsed;
+            
+            if (chatbotCollapsed) {
+                container.classList.add('collapsed');
+                toggle.innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                `;
+            } else {
+                container.classList.remove('collapsed');
+                toggle.innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                `;
+            }
+        }
+
+        function handleChatbotKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendChatbotMessage();
+            }
+        }
+
+        async function sendChatbotMessage() {
+            const input = document.getElementById('chatbotInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message to chat
+            addChatbotMessage(message, 'user');
+            input.value = '';
+            
+            // Disable send button while processing
+            const sendBtn = document.getElementById('chatbotSendBtn');
+            sendBtn.disabled = true;
+            
+            try {
+                // Get user info for context
+                const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
+                
+                const response = await fetch('/chat/voice', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        message: message,
+                        user_id: userInfo.email || 'demo_user',
+                        context: {
+                            current_search: {
+                                origin: document.getElementById('origin').value,
+                                destination: document.getElementById('destination').value,
+                                date: document.getElementById('date').value,
+                                budget: document.getElementById('budget').value
+                            },
+                            recent_bookings: getRecentBookings()
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Handle different response types
+                    if (data.response.text) {
+                        addChatbotMessage(data.response.text, 'bot');
+                    }
+                    
+                    // Handle suggestions
+                    if (data.response.suggestions && data.response.suggestions.length > 0) {
+                        addChatbotSuggestions(data.response.suggestions);
+                    }
+                    
+                    // Handle data responses (like flight suggestions)
+                    if (data.response.data) {
+                        handleChatbotDataResponse(data.response.data, data.intent);
+                    }
+                    
+                    // Handle travel suggestions
+                    if (data.intent === 'travel_dictionary' && data.response.data) {
+                        handleTravelSuggestions(data.response.data);
+                    }
+                    
+                } else {
+                    addChatbotMessage('Sorry, I encountered an error. Please try again.', 'bot');
+                }
+                
+            } catch (error) {
+                console.error('Chatbot error:', error);
+                addChatbotMessage('Sorry, I\'m having trouble connecting. Please try again.', 'bot');
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
+        function addChatbotMessage(message, sender) {
+            const messagesContainer = document.getElementById('chatbotMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chatbot-message ${sender}`;
+            
+            if (sender === 'bot') {
+                messageDiv.innerHTML = `
+                    <div class="flex items-start gap-2">
+                        <div class="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="font-medium text-purple-400 mb-1">Akasa Assistant</div>
+                            <div>${message}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="flex items-start gap-2">
+                        <div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="font-medium text-blue-400 mb-1">You</div>
+                            <div>${message}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Enhanced Chatbot Helper Functions
+        function addChatbotSuggestions(suggestions) {
+            const messagesContainer = document.getElementById('chatbotMessages');
+            const suggestionsDiv = document.createElement('div');
+            suggestionsDiv.className = 'chatbot-message bot';
+            
+            let suggestionsHTML = '<div class="flex flex-wrap gap-2 mt-2">';
+            suggestions.forEach(suggestion => {
+                suggestionsHTML += `<button class="text-xs bg-purple-600 hover:bg-purple-700 px-2 py-1 rounded" onclick="askChatbot('${suggestion}')">${suggestion}</button>`;
+            });
+            suggestionsHTML += '</div>';
+            
+            suggestionsDiv.innerHTML = `
+                <div class="flex items-start gap-2">
+                    <div class="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="font-medium text-purple-400 mb-1">Quick Actions</div>
+                        ${suggestionsHTML}
+                    </div>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(suggestionsDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function handleChatbotDataResponse(data, intent) {
+            if (intent === 'flight_suggestions' && data.flight_suggestions) {
+                displayFlightSuggestions(data.flight_suggestions);
+            } else if (intent === 'calendar_analysis' && data.calendar_analysis) {
+                displayCalendarAnalysis(data.calendar_analysis);
+            }
+        }
+
+        function handleTravelSuggestions(data) {
+            if (data.requires_location) {
+                addChatbotMessage(data.response, 'bot');
+                addChatbotSuggestions(data.suggestions || []);
+            } else {
+                addChatbotMessage(data.response, 'bot');
+                if (data.suggestions) {
+                    addChatbotSuggestions(data.suggestions);
+                }
+            }
+        }
+
+        function displayFlightSuggestions(suggestions) {
+            const messagesContainer = document.getElementById('chatbotMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'chatbot-message bot';
+            
+            let suggestionsHTML = '<div class="space-y-2">';
+            suggestions.forEach(suggestion => {
+                suggestionsHTML += `
+                    <div class="bg-gray-800 rounded-lg p-3">
+                        <div class="font-medium text-white">${suggestion.event_summary}</div>
+                        <div class="text-sm text-gray-400">${suggestion.destination}</div>
+                        <div class="text-xs text-gray-500 mt-1">
+                            Departure: ${new Date(suggestion.suggested_departure).toLocaleDateString()}
+                        </div>
+                        ${suggestion.conflict_warning ? `<div class="text-xs text-yellow-400 mt-1">⚠️ ${suggestion.conflict_warning}</div>` : ''}
+                    </div>
+                `;
+            });
+            suggestionsHTML += '</div>';
+            
+            messageDiv.innerHTML = `
+                <div class="flex items-start gap-2">
+                    <div class="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="font-medium text-purple-400 mb-1">Flight Suggestions</div>
+                        <div class="text-sm mb-2">Based on your calendar events:</div>
+                        ${suggestionsHTML}
+                    </div>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function displayCalendarAnalysis(analysis) {
+            const messagesContainer = document.getElementById('chatbotMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'chatbot-message bot';
+            
+            messageDiv.innerHTML = `
+                <div class="flex items-start gap-2">
+                    <div class="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="font-medium text-purple-400 mb-1">Calendar Analysis</div>
+                        <div class="text-sm">Found ${analysis.travel_events || 0} travel-related events in your calendar.</div>
+                        <div class="mt-2">
+                            <button class="text-xs bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded" onclick="askChatbot('Suggest flights for my calendar events')">
+                                Get Flight Suggestions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function askChatbot(question) {
+            const input = document.getElementById('chatbotInput');
+            input.value = question;
+            sendChatbotMessage();
+        }
+
+        function getRecentBookings() {
+            // Get recent bookings from session storage or localStorage
+            const bookings = JSON.parse(sessionStorage.getItem('recentBookings') || '[]');
+            return bookings.slice(0, 3); // Return last 3 bookings
+        }
+
+        function addRecentBooking(bookingData) {
+            const bookings = JSON.parse(sessionStorage.getItem('recentBookings') || '[]');
+            bookings.unshift({
+                ...bookingData,
+                timestamp: new Date().toISOString()
+            });
+            // Keep only last 5 bookings
+            sessionStorage.setItem('recentBookings', JSON.stringify(bookings.slice(0, 5)));
+        }
+
+        // Voice Input Functions
+        let recognition = null;
+        let isVoiceListening = false;
+
+        function toggleVoiceInput() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                addChatbotMessage('Voice input is not supported in your browser. Please use text input.', 'bot');
+                return;
+            }
+
+            if (isVoiceListening) {
+                stopVoiceInput();
+            } else {
+                startVoiceInput();
+            }
+        }
+
+        function startVoiceInput() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = function() {
+                isVoiceListening = true;
+                document.getElementById('voiceIndicator').classList.add('active');
+                document.getElementById('voiceInputBtn').innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                `;
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('chatbotInput').value = transcript;
+                sendChatbotMessage();
+            };
+
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error:', event.error);
+                addChatbotMessage('Sorry, I couldn\'t understand that. Please try again.', 'bot');
+                stopVoiceInput();
+            };
+
+            recognition.onend = function() {
+                stopVoiceInput();
+            };
+
+            recognition.start();
+        }
+
+        function stopVoiceInput() {
+            if (recognition) {
+                recognition.stop();
+            }
+            isVoiceListening = false;
+            document.getElementById('voiceIndicator').classList.remove('active');
+            document.getElementById('voiceInputBtn').innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                </svg>
+            `;
+        }
+
+        // Booking Completion Dialog
+        function showBookingCompletionDialog() {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+                    <div class="text-center">
+                        <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-semibold text-white mb-2">Booking Completed!</h3>
+                        <p class="text-gray-400 mb-6">Your flight has been successfully booked. Let me sync it with your calendar and check for any conflicts.</p>
+                        
+                        <div class="space-y-3">
+                            <button class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg" onclick="syncBookingWithCalendar()">
+                                Sync with Calendar
+                            </button>
+                            <button class="w-full bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg" onclick="closeBookingCompletionDialog()">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Auto-close after 10 seconds
+            setTimeout(() => {
+                if (document.body.contains(modal)) {
+                    closeBookingCompletionDialog();
+                }
+            }, 10000);
+        }
+
+        function closeBookingCompletionDialog() {
+            const modal = document.querySelector('.fixed.inset-0.bg-black.bg-opacity-50');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        async function syncBookingWithCalendar() {
+            try {
+                // Get the last booking data
+                const lastBooking = {
+                    origin: sessionStorage.getItem('lastSearchOrigin'),
+                    destination: sessionStorage.getItem('lastSearchDestination'),
+                    date: sessionStorage.getItem('lastSearchDate'),
+                    price: sessionStorage.getItem('lastSearchPrice'),
+                    flight_number: sessionStorage.getItem('lastSearchFlightNumber')
+                };
+
+                if (!lastBooking.origin) {
+                    addChatbotMessage('No recent booking found to sync. Please complete a booking first.', 'bot');
+                    return;
+                }
+
+                // Add to recent bookings
+                addRecentBooking(lastBooking);
+
+                // Check for calendar conflicts
+                const response = await fetch('/calendar/check-conflicts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: `booking_${Date.now()}`,
+                        flight_number: lastBooking.flight_number,
+                        origin: lastBooking.origin,
+                        destination: lastBooking.destination,
+                        departure_time: lastBooking.date + 'T10:00:00Z',
+                        arrival_time: lastBooking.date + 'T12:00:00Z',
+                        price: parseInt(lastBooking.price)
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.has_conflicts) {
+                        addChatbotMessage(`⚠️ I found ${data.conflicts.length} potential conflicts with your calendar events. Please review your schedule.`, 'bot');
+                        
+                        // Show detailed conflict information
+                        data.conflicts.forEach(conflict => {
+                            addChatbotMessage(`Conflict: ${conflict.conflict_type} (${conflict.severity}) - ${conflict.suggested_actions.join(', ')}`, 'bot');
+                        });
+                    } else {
+                        addChatbotMessage('✅ Great! Your booking has been synced with your calendar and no conflicts were found.', 'bot');
+                    }
+                } else {
+                    addChatbotMessage('Booking synced but couldn\'t check for calendar conflicts. Please review your calendar manually.', 'bot');
+                }
+
+                closeBookingCompletionDialog();
+
+            } catch (error) {
+                console.error('Calendar sync error:', error);
+                addChatbotMessage('Sorry, I couldn\'t sync your booking with the calendar. Please try again.', 'bot');
+            }
+        }
+
+        // Booking Confirmation Functions
+        function showBookingConfirmation(flightData) {
+            currentBookingData = flightData;
+            const modal = document.getElementById('bookingConfirmationModal');
+            const bookingDetails = document.getElementById('bookingDetails');
+            const conflictAlerts = document.getElementById('conflictAlerts');
+            
+            // Populate booking details
+            bookingDetails.innerHTML = `
+                <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                    <h4 class="font-semibold text-white mb-3">Flight Details</h4>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-gray-400">Flight:</span>
+                            <span class="text-white ml-2">${flightData.flight_number}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">Airline:</span>
+                            <span class="text-white ml-2">${flightData.airline}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">From:</span>
+                            <span class="text-white ml-2">${flightData.origin}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">To:</span>
+                            <span class="text-white ml-2">${flightData.destination}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">Departure:</span>
+                            <span class="text-white ml-2">${flightData.departure_time}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">Arrival:</span>
+                            <span class="text-white ml-2">${flightData.arrival_time}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">Duration:</span>
+                            <span class="text-white ml-2">${flightData.duration}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">Price:</span>
+                            <span class="text-white ml-2">₹${flightData.price.toLocaleString()}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Check for calendar conflicts
+            checkBookingConflicts(flightData);
+            
+            modal.style.display = 'flex';
+        }
+
+        async function checkBookingConflicts(flightData) {
+            const conflictAlerts = document.getElementById('conflictAlerts');
+            conflictAlerts.innerHTML = '<div class="text-center text-gray-400">Checking for calendar conflicts...</div>';
+            
+            try {
+                const response = await fetch('/calendar/check-conflicts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: `booking_${Date.now()}`,
+                        flight_number: flightData.flight_number,
+                        origin: flightData.origin,
+                        destination: flightData.destination,
+                        departure_time: flightData.departure_time,
+                        arrival_time: flightData.arrival_time,
+                        price: flightData.price
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.has_conflicts) {
+                        displayConflictAlerts(data.conflicts);
+                    } else {
+                        conflictAlerts.innerHTML = `
+                            <div class="conflict-alert info">
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <span class="font-medium text-blue-400">No Conflicts Found</span>
+                                </div>
+                                <p class="text-sm text-gray-300 mt-1">Your flight booking doesn't conflict with any calendar events.</p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    conflictAlerts.innerHTML = `
+                        <div class="conflict-alert warning">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                </svg>
+                                <span class="font-medium text-yellow-400">Unable to Check Conflicts</span>
+                            </div>
+                            <p class="text-sm text-gray-300 mt-1">Could not verify calendar conflicts. Please review your calendar manually.</p>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('Conflict check error:', error);
+                conflictAlerts.innerHTML = `
+                    <div class="conflict-alert warning">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                            <span class="font-medium text-yellow-400">Error Checking Conflicts</span>
+                        </div>
+                        <p class="text-sm text-gray-300 mt-1">Unable to check for calendar conflicts. Please try again.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayConflictAlerts(conflicts) {
+            const conflictAlerts = document.getElementById('conflictAlerts');
+            let alertsHTML = '';
+            
+            conflicts.forEach(conflict => {
+                let alertClass = 'conflict-alert';
+                let iconClass = 'w-5 h-5';
+                let iconPath = '';
+                let titleClass = '';
+                
+                switch (conflict.severity) {
+                    case 'critical':
+                        alertClass += '';
+                        iconClass += ' text-red-400';
+                        titleClass = 'text-red-400';
+                        iconPath = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z';
+                        break;
+                    case 'high':
+                        alertClass += ' warning';
+                        iconClass += ' text-yellow-400';
+                        titleClass = 'text-yellow-400';
+                        iconPath = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z';
+                        break;
+                    default:
+                        alertClass += ' info';
+                        iconClass += ' text-blue-400';
+                        titleClass = 'text-blue-400';
+                        iconPath = 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z';
+                }
+                
+                alertsHTML += `
+                    <div class="${alertClass}">
+                        <div class="flex items-center gap-2">
+                            <svg class="${iconClass}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${iconPath}"></path>
+                            </svg>
+                            <span class="font-medium ${titleClass}">${conflict.conflict_type.replace('_', ' ').toUpperCase()} - ${conflict.severity.toUpperCase()}</span>
+                        </div>
+                        <p class="text-sm text-gray-300 mt-1">
+                            ${conflict.conflicting_events.length} conflicting event(s) found.
+                        </p>
+                        <div class="mt-2">
+                            <p class="text-sm font-medium text-gray-300 mb-1">Suggested actions:</p>
+                            <ul class="text-sm text-gray-400 list-disc list-inside">
+                                ${conflict.suggested_actions.map(action => `<li>${action}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            conflictAlerts.innerHTML = alertsHTML;
+        }
+
+        function closeBookingConfirmation() {
+            const modal = document.getElementById('bookingConfirmationModal');
+            modal.style.display = 'none';
+            currentBookingData = null;
+        }
+
+        async function confirmBooking() {
+            if (!currentBookingData) return;
+            
+            // Show loading state
+            const confirmBtn = event.target;
+            const originalText = confirmBtn.textContent;
+            confirmBtn.textContent = 'Processing...';
+            confirmBtn.disabled = true;
+            
+            try {
+                // Create booking.com URL with flight details
+                const bookingUrl = `https://www.booking.com/flights/?origin=${currentBookingData.origin}&destination=${currentBookingData.destination}&departure_date=${currentBookingData.date}&flight_number=${currentBookingData.flight_number}`;
+                
+                // Store user preferences in session storage before redirecting
+                sessionStorage.setItem('lastSearchOrigin', currentBookingData.origin);
+                sessionStorage.setItem('lastSearchDestination', currentBookingData.destination);
+                sessionStorage.setItem('lastSearchDate', currentBookingData.date);
+                sessionStorage.setItem('lastSearchPrice', currentBookingData.price);
+                sessionStorage.setItem('lastSearchFlightNumber', currentBookingData.flight_number);
+                
+                // Close modal first
+                closeBookingConfirmation();
+                
+                // Show notification
+                showNotification('Redirecting to booking site...', 'success');
+                
+                // Open booking site in new tab
+                window.open(bookingUrl, '_blank');
+                
+                // Add booking to chatbot conversation
+                addChatbotMessage(`I've initiated your booking for flight ${currentBookingData.flight_number} from ${currentBookingData.origin} to ${currentBookingData.destination} for ₹${currentBookingData.price.toLocaleString()}. Please complete the booking on the external site.`, 'bot');
+                
+                // Show booking completion dialog after a delay (simulating return from booking)
+                setTimeout(() => {
+                    showBookingCompletionDialog();
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Booking confirmation error:', error);
+                showNotification('Failed to redirect to booking site. Please try again.', 'error');
+            } finally {
+                confirmBtn.textContent = originalText;
+                confirmBtn.disabled = false;
+            }
+        }
+
     </script>
 </body>
 </html>

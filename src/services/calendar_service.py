@@ -771,6 +771,48 @@ class CalendarService:
         except Exception as e:
             logger.error(f"Error sending conflict warnings: {str(e)}")
             return False
+    
+    def analyze_events_for_travel(self, events):
+        """Analyze events to determine travel-related ones"""
+        travel_events = []
+        
+        for event in events:
+            # Simple analysis - in production, this would be more sophisticated
+            summary = event.get('summary', '').lower()
+            location = event.get('location', '').lower()
+            
+            # Check for travel-related keywords
+            travel_keywords = ['meeting', 'conference', 'business', 'travel', 'trip', 'visit']
+            if any(keyword in summary for keyword in travel_keywords):
+                travel_events.append({
+                    'id': event.get('id'),
+                    'summary': event.get('summary'),
+                    'start': event.get('start'),
+                    'end': event.get('end'),
+                    'location': event.get('location'),
+                    'is_travel_related': True
+                })
+        
+        return travel_events
+    
+    def generate_travel_suggestions(self, analysis):
+        """Generate travel suggestions based on calendar analysis"""
+        suggestions = []
+        
+        for event in analysis:
+            if event.get('is_travel_related'):
+                suggestions.append({
+                    'event_id': event.get('id'),
+                    'event_summary': event.get('summary'),
+                    'destination': event.get('location', 'Unknown'),
+                    'suggested_departure': event.get('start', {}).get('dateTime', ''),
+                    'suggested_return': event.get('end', {}).get('dateTime', ''),
+                    'flight_options': [],
+                    'conflict_warning': None,
+                    'priority_score': 0.8
+                })
+        
+        return suggestions
 
 # Global calendar service instance
 calendar_service = CalendarService()

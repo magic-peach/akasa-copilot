@@ -383,19 +383,97 @@ def get_pnr_info(pnr_number):
 
 @app.route('/chat/voice', methods=['POST'])
 def voice_chat():
-    """Handle voice chat requests"""
+    """Handle voice chat requests with enhanced functionality"""
     try:
         data = request.get_json()
         if not data or 'message' not in data:
             return jsonify({'error': 'No message provided'}), 400
 
         message = data['message']
-        response = voice_chatbot.process_voice_message(message)
+        user_id = data.get('user_id', 'demo_user')
+        context = data.get('context', {})
         
-        return jsonify({
-            'success': True,
-            'response': response
-        }), 200
+        # Get user info from session if available
+        if 'user_info' in session:
+            user_id = session['user_info'].get('email', user_id)
+        
+        # Process the voice request with context
+        response = voice_chatbot.process_voice_request(
+            user_id=user_id, 
+            text_input=message,
+            context=context
+        )
+        
+        if response.get('success'):
+            # Add additional context to response
+            enhanced_response = response['response'].copy()
+            
+            # Handle travel suggestions based on calendar
+            if response.get('intent') == 'flight_suggestions':
+                try:
+                    origin = context.get('current_search', {}).get('origin', 'DEL')
+                    suggestions = calendar_service.generate_flight_suggestions(user_id, origin)
+                    
+                    # Convert suggestions to JSON-serializable format
+                    suggestions_data = []
+                    for suggestion in suggestions:
+                        suggestions_data.append({
+                            'event_id': suggestion.event_id,
+                            'event_summary': suggestion.event_summary,
+                            'destination': suggestion.destination,
+                            'suggested_departure': suggestion.suggested_departure.isoformat(),
+                            'suggested_return': suggestion.suggested_return.isoformat(),
+                            'flight_options': suggestion.flight_options,
+                            'conflict_warning': suggestion.conflict_warning,
+                            'priority_score': suggestion.priority_score
+                        })
+                    
+                    enhanced_response['data'] = {
+                        'flight_suggestions': suggestions_data
+                    }
+                except Exception as e:
+                    logger.warning(f"Could not generate flight suggestions: {e}")
+            
+            # Handle calendar analysis
+            elif response.get('intent') == 'calendar_analysis':
+                try:
+                    events = calendar_service.sync_calendar_events(user_id, 30)
+                    travel_events = [e for e in events if e.is_travel_related]
+                    
+                    enhanced_response['data'] = {
+                        'calendar_analysis': {
+                            'total_events': len(events),
+                            'travel_events': len(travel_events),
+                            'events': [
+                                {
+                                    'id': event.id,
+                                    'summary': event.summary,
+                                    'start_time': event.start_time.isoformat(),
+                                    'end_time': event.end_time.isoformat(),
+                                    'location': event.location,
+                                    'is_travel_related': event.is_travel_related,
+                                    'destination_city': event.destination_city,
+                                    'travel_type': event.travel_type,
+                                    'priority': event.priority
+                                } for event in events[:10]  # Limit to first 10 events
+                            ]
+                        }
+                    }
+                except Exception as e:
+                    logger.warning(f"Could not analyze calendar: {e}")
+            
+            return jsonify({
+                'success': True,
+                'response': enhanced_response,
+                'intent': response.get('intent'),
+                'confidence': response.get('confidence')
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': response.get('error', 'Unknown error')
+            }), 500
+            
     except Exception as e:
         logger.error(f"Voice chat error: {str(e)}")
         return jsonify({'error': 'Voice chat failed', 'message': str(e)}), 500

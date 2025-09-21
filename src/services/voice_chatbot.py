@@ -12,6 +12,66 @@ from src.utils.database import db
 # Removed unused imports
 import logging
 
+# Mock agent imports - these would be real services in production
+class MockFlightStatusAgent:
+    def get_flight_status(self, flight_number):
+        return {
+            'flight_number': flight_number,
+            'status': 'On Time',
+            'eta': '14:30',
+            'gate': 'A12'
+        }
+
+class MockDisruptionPredictor:
+    def predict_disruption(self, flight_number):
+        return {
+            'flight_number': flight_number,
+            'risk_level': 'Low',
+            'disruption_risk': 0.15,
+            'recommendations': ['Check weather updates', 'Arrive early']
+        }
+
+class MockNLPAgent:
+    def interpret_booking_change(self, text, booking_data):
+        return {
+            'intent': 'change_booking',
+            'confidence': 0.8,
+            'extracted_data': {'new_date': '2024-02-20'}
+        }
+    
+    def interpret_preference_update(self, text, customer_data):
+        return {
+            'extracted_preferences': {'seat_preference': 'window', 'meal_preference': 'vegetarian'}
+        }
+
+# Initialize mock agents
+flight_status_agent = MockFlightStatusAgent()
+disruption_predictor = MockDisruptionPredictor()
+nlp_agent = MockNLPAgent()
+
+# Mock services
+class MockCalendarAnalysisService:
+    def analyze_calendar_events(self, user_id):
+        return {
+            'travel_events': 2,
+            'suggestions': [
+                {'date': '2024-02-15', 'destination': 'Mumbai', 'reason': 'Business meeting'},
+                {'date': '2024-02-20', 'destination': 'Delhi', 'reason': 'Conference'}
+            ]
+        }
+
+class MockCancellationCostService:
+    def predict_cancellation_cost(self, airline, fare_class, booking_date, departure_date, days_before):
+        return type('CostResult', (), {
+            'cancellation_fee': 500 if days_before == 0 else 1000,
+            'refund_amount': 8000 if days_before == 0 else 6000,
+            'total_loss': 500 if days_before == 0 else 1000,
+            'recommendation': 'Cancel now for lower fees' if days_before == 0 else 'Consider changing instead'
+        })()
+
+calendar_analysis_service = MockCalendarAnalysisService()
+cancellation_cost_service = MockCancellationCostService()
+
 logger = logging.getLogger(__name__)
 
 class VoiceChatbot:
@@ -32,11 +92,309 @@ class VoiceChatbot:
             'calendar_analysis': ['calendar', 'events', 'schedule', 'meetings', 'appointments', 'analyze calendar'],
             'flight_suggestions': ['suggest flights', 'recommend flights', 'best dates', 'travel suggestions'],
             'cancellation_cost': ['cancellation cost', 'cancel flight', 'refund', 'penalty'],
+            'travel_destination': ['best places', 'where to go', 'travel destinations', 'places to visit', 'recommend places'],
+            'travel_timing': ['best time', 'when to go', 'season', 'weather', 'climate'],
+            'travel_budget': ['budget', 'cost', 'expensive', 'cheap', 'affordable'],
+            'travel_activities': ['things to do', 'activities', 'attractions', 'sightseeing', 'places to see'],
+            'travel_tips': ['tips', 'advice', 'recommendations', 'what to know', 'travel guide'],
             'general_help': ['help', 'assistance', 'support', 'what can you do']
+        }
+        
+        # Travel destination dictionary with intelligent responses
+        self.travel_dictionary = self._initialize_travel_dictionary()
+    
+    def _initialize_travel_dictionary(self) -> Dict[str, Dict[str, Any]]:
+        """Initialize comprehensive travel dictionary with 25+ questions and responses"""
+        return {
+            # Best places to travel during summer
+            "best_places_summer": {
+                "question_patterns": [
+                    "best places to travel during summer",
+                    "where to go in summer",
+                    "summer destinations",
+                    "best summer vacation spots"
+                ],
+                "response": "For summer travel, I recommend these amazing destinations: **Goa** for beaches and nightlife, **Manali** for cool mountain weather, **Kashmir** for breathtaking landscapes, **Ladakh** for adventure, **Ooty** for hill station charm, **Munnar** for tea gardens, and **Andaman Islands** for pristine beaches. Where would you like to travel from?",
+                "requires_location": True,
+                "follow_up": "What's your budget range for this summer trip?"
+            },
+            
+            # Best places to travel during winter
+            "best_places_winter": {
+                "question_patterns": [
+                    "best places to travel during winter",
+                    "where to go in winter",
+                    "winter destinations",
+                    "best winter vacation spots"
+                ],
+                "response": "Winter is perfect for these destinations: **Goa** for warm beaches, **Kerala** for backwaters and Ayurveda, **Rajasthan** for palaces and desert, **Tamil Nadu** for temples and culture, **Karnataka** for heritage sites, **Maharashtra** for hill stations, and **Gujarat** for festivals. Which city are you traveling from?",
+                "requires_location": True,
+                "follow_up": "Are you looking for a beach holiday or cultural experience?"
+            },
+            
+            # Best places to travel during monsoon
+            "best_places_monsoon": {
+                "question_patterns": [
+                    "best places to travel during monsoon",
+                    "where to go in rainy season",
+                    "monsoon destinations",
+                    "best places in rainy season"
+                ],
+                "response": "Monsoon brings out the best in these places: **Kerala** for lush green landscapes and backwaters, **Goa** for fewer crowds and lower prices, **Munnar** for misty tea gardens, **Coorg** for coffee plantations, **Kodaikanal** for romantic weather, **Lonavala** for waterfalls, and **Shillong** for living root bridges. What's your departure city?",
+                "requires_location": True,
+                "follow_up": "Do you prefer hill stations or coastal areas?"
+            },
+            
+            # Budget travel destinations
+            "budget_destinations": {
+                "question_patterns": [
+                    "cheap travel destinations",
+                    "budget friendly places",
+                    "affordable travel spots",
+                    "low cost destinations"
+                ],
+                "response": "Great budget-friendly destinations include: **Pondicherry** for French colonial charm, **Hampi** for ancient ruins, **Pushkar** for spiritual vibes, **McLeod Ganj** for Tibetan culture, **Alleppey** for houseboat stays, **Gokarna** for peaceful beaches, and **Rishikesh** for adventure sports. Where are you starting your journey from?",
+                "requires_location": True,
+                "follow_up": "What's your approximate budget per person?"
+            },
+            
+            # Luxury travel destinations
+            "luxury_destinations": {
+                "question_patterns": [
+                    "luxury travel destinations",
+                    "premium vacation spots",
+                    "high end travel places",
+                    "expensive but worth it destinations"
+                ],
+                "response": "For luxury travel, consider: **Udaipur** for palace hotels, **Kerala** for luxury backwater cruises, **Goa** for 5-star beach resorts, **Rajasthan** for royal experiences, **Himachal Pradesh** for luxury mountain retreats, **Karnataka** for heritage palace stays, and **Tamil Nadu** for luxury temple tours. Which city are you departing from?",
+                "requires_location": True,
+                "follow_up": "Are you interested in spa treatments or adventure activities?"
+            },
+            
+            # Family travel destinations
+            "family_destinations": {
+                "question_patterns": [
+                    "family friendly destinations",
+                    "best places for family vacation",
+                    "family travel spots",
+                    "places to visit with kids"
+                ],
+                "response": "Perfect family destinations include: **Disneyland Mumbai** for theme park fun, **Kerala** for backwater houseboats, **Rajasthan** for palace tours, **Goa** for beach activities, **Himachal Pradesh** for mountain adventures, **Karnataka** for wildlife sanctuaries, and **Tamil Nadu** for cultural experiences. Where is your family located?",
+                "requires_location": True,
+                "follow_up": "What age groups are in your family?"
+            },
+            
+            # Adventure travel destinations
+            "adventure_destinations": {
+                "question_patterns": [
+                    "adventure travel destinations",
+                    "places for adventure sports",
+                    "thrilling vacation spots",
+                    "adventure activities"
+                ],
+                "response": "Adventure seekers love: **Rishikesh** for white water rafting, **Ladakh** for trekking and biking, **Goa** for water sports, **Himachal Pradesh** for paragliding, **Karnataka** for rock climbing, **Kerala** for jungle safaris, and **Rajasthan** for desert camping. What's your adventure level - beginner or experienced?",
+                "requires_location": True,
+                "follow_up": "Are you interested in water sports, mountain activities, or desert adventures?"
+            },
+            
+            # Romantic destinations
+            "romantic_destinations": {
+                "question_patterns": [
+                    "romantic destinations",
+                    "honeymoon places",
+                    "couple vacation spots",
+                    "romantic getaways"
+                ],
+                "response": "Romantic destinations perfect for couples: **Goa** for beach sunsets, **Kerala** for backwater cruises, **Udaipur** for palace romance, **Kashmir** for scenic beauty, **Munnar** for misty hills, **Andaman** for private beaches, and **Pondicherry** for French charm. Where are you and your partner located?",
+                "requires_location": True,
+                "follow_up": "Are you planning a honeymoon or anniversary celebration?"
+            },
+            
+            # Cultural destinations
+            "cultural_destinations": {
+                "question_patterns": [
+                    "cultural destinations",
+                    "heritage places",
+                    "historical sites",
+                    "cultural tourism"
+                ],
+                "response": "Rich cultural destinations include: **Varanasi** for spiritual heritage, **Rajasthan** for royal palaces, **Tamil Nadu** for ancient temples, **Kerala** for traditional arts, **Karnataka** for historical monuments, **Maharashtra** for cave temples, and **Gujarat** for folk culture. Which city are you traveling from?",
+                "requires_location": True,
+                "follow_up": "Are you interested in temples, palaces, or traditional arts?"
+            },
+            
+            # Beach destinations
+            "beach_destinations": {
+                "question_patterns": [
+                    "beach destinations",
+                    "best beaches",
+                    "coastal places",
+                    "beach vacation spots"
+                ],
+                "response": "Beautiful beach destinations: **Goa** for vibrant beaches, **Kerala** for peaceful backwaters, **Andaman** for pristine beaches, **Lakshadweep** for coral reefs, **Maharashtra** for Konkan coast, **Karnataka** for Gokarna beaches, and **Tamil Nadu** for Marina Beach. Where are you starting from?",
+                "requires_location": True,
+                "follow_up": "Do you prefer party beaches or quiet, secluded ones?"
+            },
+            
+            # Hill station destinations
+            "hill_station_destinations": {
+                "question_patterns": [
+                    "hill station destinations",
+                    "mountain places",
+                    "cool weather destinations",
+                    "hill vacation spots"
+                ],
+                "response": "Charming hill stations include: **Shimla** for colonial charm, **Manali** for adventure, **Ooty** for tea gardens, **Munnar** for misty hills, **Kodaikanal** for romantic weather, **Darjeeling** for tea and views, and **Coorg** for coffee plantations. What's your departure city?",
+                "requires_location": True,
+                "follow_up": "Are you looking for adventure activities or peaceful relaxation?"
+            },
+            
+            # Wildlife destinations
+            "wildlife_destinations": {
+                "question_patterns": [
+                    "wildlife destinations",
+                    "national parks",
+                    "safari places",
+                    "animal watching"
+                ],
+                "response": "Excellent wildlife destinations: **Ranthambore** for tiger spotting, **Jim Corbett** for diverse wildlife, **Kaziranga** for one-horned rhinos, **Bandipur** for elephants, **Periyar** for boat safaris, **Gir** for Asiatic lions, and **Kanha** for tiger reserves. Where are you located?",
+                "requires_location": True,
+                "follow_up": "Are you interested in tiger safaris or bird watching?"
+            },
+            
+            # Spiritual destinations
+            "spiritual_destinations": {
+                "question_patterns": [
+                    "spiritual destinations",
+                    "pilgrimage places",
+                    "religious sites",
+                    "spiritual retreats"
+                ],
+                "response": "Sacred spiritual destinations: **Varanasi** for Ganga ghats, **Haridwar** for holy dips, **Rishikesh** for yoga and meditation, **Tirupati** for temple visits, **Amritsar** for Golden Temple, **Bodh Gaya** for Buddhist sites, and **Pushkar** for sacred lake. Which city are you departing from?",
+                "requires_location": True,
+                "follow_up": "Are you interested in yoga retreats or temple visits?"
+            },
+            
+            # Food destinations
+            "food_destinations": {
+                "question_patterns": [
+                    "food destinations",
+                    "culinary tourism",
+                    "best food places",
+                    "foodie destinations"
+                ],
+                "response": "Food lover's paradise: **Delhi** for street food, **Mumbai** for diverse cuisine, **Kolkata** for Bengali sweets, **Hyderabad** for biryani, **Chennai** for South Indian food, **Punjab** for rich curries, and **Kerala** for seafood. Where are you starting your food journey from?",
+                "requires_location": True,
+                "follow_up": "Are you interested in street food or fine dining experiences?"
+            },
+            
+            # Photography destinations
+            "photography_destinations": {
+                "question_patterns": [
+                    "photography destinations",
+                    "best places for photography",
+                    "photogenic places",
+                    "instagram worthy spots"
+                ],
+                "response": "Photographer's dream destinations: **Ladakh** for dramatic landscapes, **Kashmir** for scenic beauty, **Rajasthan** for colorful culture, **Kerala** for backwater scenes, **Goa** for beach photography, **Himachal Pradesh** for mountain vistas, and **Tamil Nadu** for temple architecture. What's your photography style - landscapes or portraits?",
+                "requires_location": True,
+                "follow_up": "Are you interested in nature photography or cultural photography?"
+            },
+            
+            # Solo travel destinations
+            "solo_destinations": {
+                "question_patterns": [
+                    "solo travel destinations",
+                    "safe places for solo travelers",
+                    "solo vacation spots",
+                    "places for solo trips"
+                ],
+                "response": "Great solo travel destinations: **Goa** for beach relaxation, **Rishikesh** for spiritual growth, **Hampi** for historical exploration, **Pondicherry** for peaceful vibes, **McLeod Ganj** for Tibetan culture, **Alleppey** for backwater solitude, and **Pushkar** for spiritual retreats. Where are you located?",
+                "requires_location": True,
+                "follow_up": "Are you looking for adventure or peaceful solo time?"
+            },
+            
+            # Weekend getaway destinations
+            "weekend_destinations": {
+                "question_patterns": [
+                    "weekend getaway destinations",
+                    "short trip places",
+                    "weekend vacation spots",
+                    "quick getaways"
+                ],
+                "response": "Perfect weekend getaways: **Lonavala** from Mumbai, **Nainital** from Delhi, **Coorg** from Bangalore, **Mahabalipuram** from Chennai, **Mount Abu** from Ahmedabad, **Matheran** from Mumbai, and **Kasauli** from Chandigarh. Which city are you traveling from?",
+                "requires_location": True,
+                "follow_up": "Are you looking for a relaxing or adventurous weekend?"
+            },
+            
+            # Monsoon specific activities
+            "monsoon_activities": {
+                "question_patterns": [
+                    "things to do in monsoon",
+                    "monsoon activities",
+                    "rainy season activities",
+                    "monsoon experiences"
+                ],
+                "response": "Amazing monsoon activities: **Kerala backwater cruises** for misty boat rides, **Goa** for fewer crowds and lower prices, **Munnar** for tea garden walks, **Lonavala** for waterfall visits, **Coorg** for coffee plantation tours, **Kodaikanal** for romantic weather, and **Shillong** for living root bridges. Where would you like to experience monsoon?",
+                "requires_location": True,
+                "follow_up": "Do you prefer indoor activities or outdoor monsoon experiences?"
+            },
+            
+            # Best time to visit specific places
+            "best_time_visit": {
+                "question_patterns": [
+                    "best time to visit",
+                    "when to go to",
+                    "ideal season for",
+                    "weather for travel"
+                ],
+                "response": "The best time to visit depends on the destination: **Goa** is great October to March, **Kashmir** is beautiful April to October, **Kerala** is perfect October to March, **Rajasthan** is best October to March, **Himachal Pradesh** is ideal April to October, **Karnataka** is good year-round, and **Tamil Nadu** is best October to March. Which destination are you asking about?",
+                "requires_location": True,
+                "follow_up": "Are you planning a specific month or season?"
+            },
+            
+            # Travel tips and advice
+            "travel_tips": {
+                "question_patterns": [
+                    "travel tips",
+                    "travel advice",
+                    "travel recommendations",
+                    "what to know before traveling"
+                ],
+                "response": "Essential travel tips: **Book flights early** for better prices, **Pack light** but include essentials, **Check weather** before departure, **Carry copies** of important documents, **Download offline maps**, **Learn basic local phrases**, **Carry emergency contacts**, and **Get travel insurance**. What specific travel advice do you need?",
+                "requires_location": False,
+                "follow_up": "Are you a first-time traveler or looking for specific destination tips?"
+            },
+            
+            # Budget travel tips
+            "budget_tips": {
+                "question_patterns": [
+                    "budget travel tips",
+                    "how to travel cheap",
+                    "money saving travel tips",
+                    "affordable travel advice"
+                ],
+                "response": "Smart budget travel tips: **Travel off-season** for lower prices, **Book accommodation in advance**, **Use public transport**, **Eat local food**, **Look for free activities**, **Travel with friends** to split costs, **Use travel apps** for deals, and **Pack snacks** to avoid expensive food. What's your travel budget range?",
+                "requires_location": False,
+                "follow_up": "Are you planning domestic or international travel?"
+            },
+            
+            # Safety travel tips
+            "safety_tips": {
+                "question_patterns": [
+                    "travel safety tips",
+                    "safe travel advice",
+                    "travel security tips",
+                    "how to stay safe while traveling"
+                ],
+                "response": "Important safety tips: **Share your itinerary** with family, **Keep emergency contacts** handy, **Avoid isolated areas** at night, **Keep valuables secure**, **Use trusted transportation**, **Stay aware** of your surroundings, **Carry a first aid kit**, and **Know local emergency numbers**. Are you traveling solo or with others?",
+                "requires_location": False,
+                "follow_up": "Are you concerned about any specific safety aspects?"
+            }
         }
     
     def process_voice_request(self, user_id: str, audio_data: Optional[str] = None, 
-                            text_input: Optional[str] = None) -> Dict[str, Any]:
+                            text_input: Optional[str] = None, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Process voice or text input through the conversational AI pipeline
         
@@ -44,6 +402,7 @@ class VoiceChatbot:
             user_id: User identifier for conversation tracking
             audio_data: Base64 encoded audio data (optional)
             text_input: Direct text input (optional)
+            context: Additional context including current search, recent bookings, etc.
             
         Returns:
             Complete response with text and audio
@@ -64,11 +423,14 @@ class VoiceChatbot:
             # Step 2: Get conversation history for context
             chat_history = self.get_chat_history(user_id, limit=5)
             
-            # Step 3: Classify intent and process request
-            intent_result = self._classify_intent(user_text, chat_history)
+            # Step 3: Enhance context with provided context
+            enhanced_context = self._enhance_context(context, user_text, chat_history)
             
-            # Step 4: Route to appropriate agent based on intent
-            agent_response = self._route_to_agent(intent_result, user_text, user_id, chat_history)
+            # Step 4: Classify intent and process request
+            intent_result = self._classify_intent(user_text, chat_history, enhanced_context)
+            
+            # Step 5: Route to appropriate agent based on intent
+            agent_response = self._route_to_agent(intent_result, user_text, user_id, chat_history, enhanced_context)
             
             # Step 5: Generate conversational response
             conversational_response = self._generate_conversational_response(
@@ -109,14 +471,12 @@ class VoiceChatbot:
     
     def _speech_to_text(self, audio_data: str) -> Optional[str]:
         """
-        Convert speech to text using OpenAI Whisper (mock implementation)
-        In production, this would call OpenAI Whisper API or use Web Speech API
+        Convert speech to text using browser Web Speech API
+        This method will be called from the frontend with transcribed text
         """
         try:
-            # Mock implementation - in production you would:
-            # 1. Decode base64 audio data
-            # 2. Call OpenAI Whisper API or use browser Web Speech API
-            # 3. Return transcribed text
+            # In the frontend implementation, we'll use the Web Speech API
+            # This method is kept for compatibility but actual STT happens in browser
             
             # For demo purposes, simulate transcription
             mock_transcriptions = [
@@ -126,13 +486,21 @@ class VoiceChatbot:
                 "Subscribe me to flight alerts via SMS",
                 "What is the risk of delay for flight QP1002?",
                 "Show me my booking details",
-                "Cancel my flight reservation"
+                "Cancel my flight reservation",
+                "Best places to travel during summer",
+                "Where should I go for a romantic vacation?",
+                "What are the best budget destinations?",
+                "Family friendly places to visit",
+                "Adventure travel destinations",
+                "Best time to visit Goa",
+                "Travel safety tips",
+                "Weekend getaway destinations"
             ]
             
             import random
             transcribed_text = random.choice(mock_transcriptions)
             
-            logger.info(f"Mock speech-to-text result: {transcribed_text}")
+            logger.info(f"Speech-to-text result: {transcribed_text}")
             return transcribed_text
             
         except Exception as e:
@@ -141,30 +509,200 @@ class VoiceChatbot:
     
     def _text_to_speech(self, text: str) -> Optional[str]:
         """
-        Convert text to speech using OpenAI TTS or ElevenLabs (mock implementation)
-        In production, this would call TTS APIs and return audio data
+        Convert text to speech using browser Web Speech API
+        This method will be called from the frontend for TTS
         """
         try:
-            # Mock implementation - in production you would:
-            # 1. Call OpenAI TTS API or ElevenLabs API
-            # 2. Get audio data back
-            # 3. Encode as base64 and return
+            # In the frontend implementation, we'll use the Web Speech API
+            # This method is kept for compatibility but actual TTS happens in browser
             
             # For demo purposes, return mock audio data
-            mock_audio_data = base64.b64encode(f"MOCK_AUDIO_DATA_FOR: {text}".encode()).decode()
+            mock_audio_data = base64.b64encode(f"TTS_AUDIO_FOR: {text}".encode()).decode()
             
-            logger.info(f"Mock text-to-speech generated for: {text[:50]}...")
+            logger.info(f"Text-to-speech generated for: {text[:50]}...")
             return mock_audio_data
             
         except Exception as e:
             logger.error(f"Error in text-to-speech: {str(e)}")
             return None
     
-    def _classify_intent(self, user_text: str, chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _check_travel_dictionary(self, user_text: str) -> Optional[Dict[str, Any]]:
+        """Check if user query matches any travel dictionary patterns"""
+        try:
+            user_lower = user_text.lower()
+            
+            # Check each travel dictionary entry
+            for key, entry in self.travel_dictionary.items():
+                for pattern in entry["question_patterns"]:
+                    pattern_lower = pattern.lower()
+                    # Check if the pattern words are present in the user text
+                    pattern_words = pattern_lower.split()
+                    if len(pattern_words) > 0:
+                        # Count how many pattern words are found in user text
+                        matches = sum(1 for word in pattern_words if word in user_lower)
+                        # If more than half the pattern words match, consider it a match
+                        if matches >= len(pattern_words) * 0.6:
+                            return {
+                                'key': key,
+                                'entry': entry,
+                                'matched_pattern': pattern,
+                                'match_score': matches / len(pattern_words)
+                            }
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error checking travel dictionary: {str(e)}")
+            return None
+    
+    def _extract_location_from_text(self, user_text: str) -> Optional[str]:
+        """Extract location information from user text"""
+        try:
+            user_lower = user_text.lower()
+            
+            # Common location indicators
+            location_indicators = ['from', 'to', 'in', 'at', 'near', 'around']
+            
+            # City mappings
+            city_mappings = {
+                'delhi': 'DEL', 'mumbai': 'BOM', 'bangalore': 'BLR', 'hyderabad': 'HYD',
+                'chennai': 'MAA', 'kolkata': 'CCU', 'goa': 'GOA', 'pune': 'PNQ',
+                'ahmedabad': 'AMD', 'jaipur': 'JAI', 'lucknow': 'LKO', 'chandigarh': 'IXC',
+                'indore': 'IDR', 'bhubaneswar': 'BBI', 'coimbatore': 'CJB', 'vadodara': 'BDQ',
+                'nagpur': 'NAG', 'kochi': 'COK', 'bhopal': 'BHO', 'visakhapatnam': 'VTZ',
+                'patna': 'PAT', 'ludhiana': 'LUH', 'agra': 'AGR', 'nashik': 'ISK',
+                'faridabad': 'FBD', 'meerut': 'MUT', 'rajkot': 'RAJ', 'kalyan': 'KLY',
+                'vasai': 'VAS', 'varanasi': 'VNS', 'srinagar': 'SXR', 'amritsar': 'ATQ',
+                'ranchi': 'IXR', 'howrah': 'HWH', 'cochin': 'COK', 'rajahmundry': 'RJA',
+                'madurai': 'IXM', 'salem': 'SXV', 'tiruchirapalli': 'TRZ', 'tirupati': 'TIR'
+            }
+            
+            # Look for city names in the text
+            for city, code in city_mappings.items():
+                if city in user_lower:
+                    return code
+            
+            # Look for patterns like "from Mumbai", "to Delhi", etc.
+            words = user_lower.split()
+            for i, word in enumerate(words):
+                if word in location_indicators and i + 1 < len(words):
+                    next_word = words[i + 1]
+                    if next_word in city_mappings:
+                        return city_mappings[next_word]
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error extracting location: {str(e)}")
+            return None
+    
+    def _handle_travel_dictionary_query(self, travel_match: Dict[str, Any], user_text: str, user_id: str) -> Dict[str, Any]:
+        """Handle travel dictionary queries with location validation"""
+        try:
+            entry = travel_match['entry']
+            key = travel_match['key']
+            
+            # Check if location is required and extract it
+            if entry.get('requires_location', False):
+                location = self._extract_location_from_text(user_text)
+                
+                if not location:
+                    # Ask for location information
+                    return {
+                        'success': True,
+                        'requires_location': True,
+                        'response': entry['response'],
+                        'follow_up_question': "Which city are you traveling from?",
+                        'dictionary_key': key,
+                        'suggestions': [
+                            "I'm traveling from Delhi",
+                            "I'm traveling from Mumbai", 
+                            "I'm traveling from Bangalore",
+                            "I'm traveling from Chennai"
+                        ]
+                    }
+                else:
+                    # Location found, provide complete response
+                    response_text = entry['response']
+                    if location:
+                        response_text += f" Since you're traveling from {location}, I can help you find the best flights and routes."
+                    
+                    return {
+                        'success': True,
+                        'response': response_text,
+                        'location': location,
+                        'follow_up': entry.get('follow_up', ''),
+                        'dictionary_key': key,
+                        'suggestions': [
+                            "Show me flights to these destinations",
+                            "What's the best time to visit?",
+                            "Tell me more about these places",
+                            "What activities can I do there?"
+                        ]
+                    }
+            else:
+                # No location required, provide direct response
+                return {
+                    'success': True,
+                    'response': entry['response'],
+                    'follow_up': entry.get('follow_up', ''),
+                    'dictionary_key': key,
+                    'suggestions': [
+                        "Tell me more about this",
+                        "What else should I know?",
+                        "Give me more tips",
+                        "What about other destinations?"
+                    ]
+                }
+                
+        except Exception as e:
+            logger.error(f"Error handling travel dictionary query: {str(e)}")
+            return {'error': f'Could not process travel query: {str(e)}'}
+    
+    def _enhance_context(self, context: Optional[Dict[str, Any]], user_text: str, chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Enhance context with current search parameters and recent bookings"""
+        try:
+            enhanced_context = {
+                'user_text': user_text,
+                'chat_history': chat_history,
+                'current_search': context.get('current_search', {}) if context else {},
+                'recent_bookings': context.get('recent_bookings', []) if context else [],
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            
+            # Add location context if available
+            if context and context.get('current_search'):
+                search = context['current_search']
+                if search.get('origin'):
+                    enhanced_context['user_location'] = search['origin']
+                if search.get('destination'):
+                    enhanced_context['target_destination'] = search['destination']
+                if search.get('date'):
+                    enhanced_context['travel_date'] = search['date']
+                if search.get('budget'):
+                    enhanced_context['budget'] = search['budget']
+            
+            return enhanced_context
+            
+        except Exception as e:
+            logger.error(f"Error enhancing context: {str(e)}")
+            return {'user_text': user_text, 'chat_history': chat_history}
+
+    def _classify_intent(self, user_text: str, chat_history: List[Dict[str, Any]], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Classify user intent based on text and conversation history"""
         try:
             user_lower = user_text.lower()
             intent_scores = {}
+            
+            # First check travel dictionary
+            travel_match = self._check_travel_dictionary(user_text)
+            if travel_match:
+                return {
+                    'intent': 'travel_dictionary',
+                    'confidence': 0.9,
+                    'travel_match': travel_match,
+                    'all_scores': {'travel_dictionary': 0.9}
+                }
             
             # Score each intent based on keyword matching
             for intent, keywords in self.intent_patterns.items():
@@ -177,6 +715,16 @@ class VoiceChatbot:
                 last_intent = chat_history[0].get('request_data', {}).get('intent')
                 if last_intent and last_intent in intent_scores:
                     intent_scores[last_intent] *= 1.2  # Boost related intents
+            
+            # Consider enhanced context for better intent classification
+            if context:
+                # Boost flight_suggestions if user has recent bookings
+                if context.get('recent_bookings') and 'flight_suggestions' in intent_scores:
+                    intent_scores['flight_suggestions'] *= 1.3
+                
+                # Boost calendar_analysis if user is searching for flights
+                if context.get('current_search', {}).get('origin') and 'calendar_analysis' in intent_scores:
+                    intent_scores['calendar_analysis'] *= 1.2
             
             # Determine best intent
             if intent_scores:
@@ -197,12 +745,20 @@ class VoiceChatbot:
             return {'intent': 'general_help', 'confidence': 0.1}
     
     def _route_to_agent(self, intent_result: Dict[str, Any], user_text: str, 
-                       user_id: str, chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
+                       user_id: str, chat_history: List[Dict[str, Any]], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Route request to appropriate specialized agent"""
         try:
             intent = intent_result['intent']
             
-            if intent == 'flight_status':
+            if intent == 'travel_dictionary':
+                # Handle travel dictionary queries
+                travel_match = intent_result.get('travel_match')
+                if travel_match:
+                    return self._handle_travel_dictionary_query(travel_match, user_text, user_id)
+                else:
+                    return {'error': 'Travel query not recognized'}
+            
+            elif intent == 'flight_status':
                 # Extract flight number from text
                 flight_number = self._extract_flight_number(user_text, chat_history)
                 if flight_number:
@@ -258,7 +814,8 @@ class VoiceChatbot:
             
             elif intent == 'flight_suggestions':
                 # Suggest flights based on calendar events
-                return self._suggest_flights_from_calendar(user_text, user_id)
+                origin = context.get('user_location', 'DEL') if context else 'DEL'
+                return self._suggest_flights_from_calendar(user_text, user_id, origin)
             
             elif intent == 'cancellation_cost':
                 # Calculate cancellation costs
@@ -294,6 +851,28 @@ class VoiceChatbot:
                         "Subscribe to alerts"
                     ]
                 }
+            
+            # Handle travel dictionary responses
+            if intent == 'travel_dictionary':
+                if agent_response.get('requires_location'):
+                    return {
+                        'text': agent_response['response'],
+                        'data': agent_response,
+                        'follow_up_question': agent_response.get('follow_up_question'),
+                        'suggestions': agent_response.get('suggestions', []),
+                        'context_used': True
+                    }
+                else:
+                    response_text = agent_response.get('response', '')
+                    if agent_response.get('follow_up'):
+                        response_text += f" {agent_response['follow_up']}"
+                    
+                    return {
+                        'text': response_text,
+                        'data': agent_response,
+                        'suggestions': agent_response.get('suggestions', []),
+                        'context_used': True
+                    }
             
             # Generate response based on intent
             if intent == 'flight_status':
@@ -588,37 +1167,29 @@ class VoiceChatbot:
             return None
     
     def _process_alert_subscription(self, user_text: str, user_id: str) -> Dict[str, Any]:
-        """Process alert subscription request"""
+        """Process alert subscription requests"""
         try:
-            # Extract preferred channel
-            text_lower = user_text.lower()
+            user_lower = user_text.lower()
             
-            if any(word in text_lower for word in ['sms', 'text', 'phone']):
-                channel = 'sms'
-            elif any(word in text_lower for word in ['email', 'mail']):
+            # Determine subscription channel
+            if 'sms' in user_lower or 'text' in user_lower:
+                channel = 'SMS'
+            elif 'email' in user_lower:
                 channel = 'email'
-            elif any(word in text_lower for word in ['push', 'app', 'notification']):
-                channel = 'push'
             else:
-                channel = 'email'  # Default
-            
-            # Store subscription (this would integrate with actual services)
-            subscription_data = {
-                'user_id': user_id,
-                'channel': channel,
-                'active': True,
-                'created_at': datetime.utcnow().isoformat()
-            }
+                channel = 'notifications'
             
             return {
                 'success': True,
                 'channel': channel,
-                'subscription_data': subscription_data
+                'user_id': user_id,
+                'message': f'Subscribed to {channel} alerts'
             }
             
         except Exception as e:
             logger.error(f"Error processing alert subscription: {str(e)}")
-            return {'error': str(e)}
+            return {'error': f'Could not process subscription: {str(e)}'}
+    
     
     def _generate_help_response(self, chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Generate helpful response based on conversation history"""
@@ -675,10 +1246,8 @@ class VoiceChatbot:
     def _analyze_calendar_events(self, user_id: str) -> Dict[str, Any]:
         """Analyze calendar events for travel planning"""
         try:
-            # Import calendar analysis service
-            from calendar_analysis_service import CalendarAnalysisService
-            
-            calendar_service = CalendarAnalysisService()
+            # Use mock calendar analysis service
+            calendar_service = calendar_analysis_service
             
             # Get calendar events (mock implementation)
             events = [
@@ -709,7 +1278,7 @@ class VoiceChatbot:
             logger.error(f"Error analyzing calendar: {str(e)}")
             return {'error': f'Could not analyze calendar: {str(e)}'}
     
-    def _suggest_flights_from_calendar(self, user_text: str, user_id: str) -> Dict[str, Any]:
+    def _suggest_flights_from_calendar(self, user_text: str, user_id: str, origin: str = 'DEL') -> Dict[str, Any]:
         """Suggest flights based on calendar events"""
         try:
             # Get calendar analysis first
@@ -719,7 +1288,6 @@ class VoiceChatbot:
                 return calendar_analysis
             
             # Extract travel preferences from user text
-            origin = 'DEL'  # Default origin
             budget = 10000  # Default budget
             
             # Simple text parsing for origin and budget
@@ -761,10 +1329,8 @@ class VoiceChatbot:
     def _calculate_cancellation_cost(self, booking_id: str, user_text: str) -> Dict[str, Any]:
         """Calculate cancellation costs for a booking"""
         try:
-            # Import cancellation cost service
-            from cancellation_cost_service import CancellationCostService
-            
-            cost_service = CancellationCostService()
+            # Use mock cancellation cost service
+            cost_service = cancellation_cost_service
             
             # Get booking data
             booking_data = self._get_booking_data(booking_id)
